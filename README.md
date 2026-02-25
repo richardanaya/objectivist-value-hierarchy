@@ -21,7 +21,7 @@ npm install -g objectivist-value-hierarchy
 
 ## Recommended AI Workflow During a Conversation
 
-1. `value-hierarchy init --seed personal.values.csv`
+1. `value-hierarchy init personal.values.csv`
 2. `value-hierarchy add personal.values.csv "New Value" --tags "tag1|tag2"`
 3. `value-hierarchy interview personal.values.csv --num 5`
    → Use the generated protocol to interview the human naturally
@@ -31,7 +31,7 @@ npm install -g objectivist-value-hierarchy
 
 ## Commands
 
-- `init <file> [--seed]`: Create a new .values.csv hierarchy file
+- `init <file>`: Create a new .values.csv hierarchy file
 - `add <file> <title>`: Add a new value to the hierarchy
 - `interview <file> [--num N]`: Generate full interview protocol + comparison pairs
 - `top10 <file> [--tag TAG]`: Show the current Top 10 values (primary view to share with human)
@@ -43,7 +43,7 @@ npm install -g objectivist-value-hierarchy
 ## Examples
 
 ```bash
-value-hierarchy init --seed ./personal.values.csv
+value-hierarchy init ./personal.values.csv
 value-hierarchy interview ~/hierarchies/career.values.csv --num 5
 value-hierarchy top10 personal.values.csv --tag productivity
 ```

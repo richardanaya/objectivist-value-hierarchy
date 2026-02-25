@@ -18,7 +18,7 @@ program
     'It helps the AI systematically elicit, refine, and maintain the human\'s personal Objectivist value hierarchy (life as the ultimate standard of value, productive achievement as the central integrating purpose).\n\n' +
     'Each hierarchy lives in its own single, portable file named <name>.values.csv (e.g. personal.values.csv, career.values.csv, 2026-review.values.csv).\n\n' +
     'RECOMMENDED AI WORKFLOW DURING A CONVERSATION\n' +
-    '1. value-hierarchy init --seed personal.values.csv\n' +
+    '1. value-hierarchy init personal.values.csv\n' +
     '2. value-hierarchy add personal.values.csv "New Value" --tags "tag1|tag2" --detail\n' +
     '3. value-hierarchy interview personal.values.csv --num 5 --personality friendly-british\n' +
     '   → Use the generated protocol to interview the human naturally\n' +
@@ -26,7 +26,7 @@ program
     '5. value-hierarchy top10 personal.values.csv\n' +
     '   → Show the human their updated ranking immediately\n\n' +
     'COMMANDS\n' +
-    '  init <file> [--seed]                Create a new .values.csv hierarchy file\n' +
+    '  init <file>                        Create a new .values.csv hierarchy file\n' +
     '  add <file> <title> [--detail]        Add a new value to the hierarchy\n' +
     '  edit <file> <id> [--title] [--tags] [--desc] Edit an existing value\n' +
     '  remove <file> <id>                  Remove a value from the hierarchy\n' +
@@ -44,7 +44,7 @@ program
     '  -h, --help        display help for command\n' +
     '  -v, --version     output the version number\n\n' +
     'EXAMPLES\n' +
-    '  value-hierarchy init --seed ./personal.values.csv\n' +
+    '  value-hierarchy init ./personal.values.csv\n' +
     '  value-hierarchy add personal.values.csv "Daily Walking" --detail\n' +
     '  value-hierarchy interview ~/hierarchies/career.values.csv --num 5 --personality friendly-british\n' +
     '  value-hierarchy update-scores personal.values.csv --responses "Life>Health,Reason>Purpose"\n' +
@@ -142,33 +142,12 @@ function generateId(title: string): string {
 program
   .command('init <file>')
   .description('Creates a new .values.csv file at the exact path you specify (creates parent directories if needed).\nUse this once per new hierarchy you are helping a human build.')
-  .option('--seed', 'Seed with the five core Objectivist values:\nLife, Reason, Purpose, Self-Esteem, Productive Achievement\n(each starts at score 1500.0 with 0 comparisons)')
   .action(async (filePath, options) => {
     validateFile(filePath);
     await fs.ensureDir(path.dirname(filePath));
     let values: Value[] = [];
-    if (options.seed) {
-      const now = new Date().toISOString();
-      const coreValues = [
-        { title: 'Life', rationale: 'Life is the ultimate value, the source of all other values.' },
-        { title: 'Reason', rationale: 'Reason is the faculty that identifies and integrates the material provided by the senses.' },
-        { title: 'Purpose', rationale: 'Purpose is the choice to live for a reason, to achieve one\'s goals.' },
-        { title: 'Self-Esteem', rationale: 'Self-esteem is the conviction that one is competent to live and worthy of living.' },
-        { title: 'Productive Achievement', rationale: 'Productive achievement is the creation of values through work and effort.' }
-      ];
-      values = coreValues.map(cv => ({
-        id: generateId(cv.title),
-        title: cv.title,
-        score: 1500,
-        comparisonCount: 0,
-        tags: 'ethics|philosophy',
-        createdAt: now,
-        updatedAt: now,
-        rationale: cv.rationale
-      }));
-    }
     await writeValues(filePath, values);
-    console.log(`Created ${filePath} ${options.seed ? 'with seeded values' : ''}`);
+    console.log(`Created ${filePath}`);
   });
 
 program
