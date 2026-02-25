@@ -1,0 +1,36 @@
+{
+  "name": "objectivist-value-hierarchy",
+  "version": "0.0.0",
+  "description": "AI Assistant Tool for Conducting Objectivist Value Hierarchy Interviews with Humans",
+  "main": "dist/index.js",
+  "bin": {
+    "value-hierarchy": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "objectivism",
+    "values",
+    "hierarchy",
+    "cli"
+  ],
+  "author": "Richard Anaya",
+  "license": "MIT",
+  "repository": "git@github.com:richardanaya/objectivist-value-hierarchy.git",
+  "type": "commonjs",
+  "dependencies": {
+    "@toon-format/toon": "^2.1.0",
+    "commander": "^12.0.0",
+    "csv-parser": "^3.0.0",
+    "csv-writer": "^1.6.0",
+    "fs-extra": "^11.2.0",
+    "slugify": "^1.6.6"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
