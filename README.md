@@ -41,7 +41,7 @@ npm install -g objectivist-value-hierarchy
 - `remove <file> <id>`: Remove a value from the hierarchy
 - `interview <file> [--personality]`: Generate full interview protocol
 - `pairs <file> [--num N]`: Generate list of comparison pairs
-- `update-scores <file> --responses`: Apply Elo-like score updates from interview responses
+- `update-scores <file> --responses`: Apply fixed-point score updates (winner +10, loser -10) from interview responses
 - `top10 <file> [--tag TAG]`: Show the current Top 10 values (primary view to share with human)
 - `list <file> [--limit N] [--tag TAG]`: List all values sorted by importance
 - `hierarchy <file>`: Show full hierarchy grouped by tags

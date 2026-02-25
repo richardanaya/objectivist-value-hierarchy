@@ -72,7 +72,7 @@ program
     '  remove <file> <id>                  Remove a value from the hierarchy\n' +
     '  interview <file> [--personality]    Generate full interview protocol\n' +
     '  pairs <file> [--num N]              Generate list of comparison pairs\n' +
-    '  update-scores <file> --responses     Apply Elo-like score updates from interview responses\n' +
+    '  update-scores <file> --responses     Apply fixed-point score updates from interview responses\n' +
     '  top10 <file> [--tag TAG]            Show the current Top 10 values (primary view to share with human)\n' +
     '  list <file> [--limit N] [--tag TAG] List all values sorted by importance\n' +
     '  hierarchy <file>                    Show full hierarchy grouped by tags\n' +
@@ -108,6 +108,12 @@ function loadTags() {
         return content.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
     }
     return fallbackTags;
+}
+async function requireFile(filePath) {
+    if (!await fs.pathExists(filePath)) {
+        console.error(`Error: File "${filePath}" does not exist. Run "value-hierarchy init ${filePath}" first.`);
+        process.exit(1);
+    }
 }
 async function readValues(filePath) {
     const values = [];
@@ -158,7 +164,7 @@ function generateId(title) {
 }
 program
     .command('init <file>')
-    .description('Creates a new CSV file at the exact path you specify (creates parent directories if needed).\nUse this once per new hierarchy you are helping a human build.')
+    .description('Creates a new CSV file at the exact path you specify (creates parent directories if needed).\nUse this once per new hierarchy you are helping a human build.\n\nRECOMMENDED PATH CONVENTIONS:\n  ./personal.csv                     Relative to current working directory\n  ~/value-hierarchies/personal.csv   For persistence across sessions\n  ~/value-hierarchies/career.csv     Separate file per life domain\n\nThe file path is not stored anywhere else -- you (the AI) must remember it\nor ask the human for it at the start of each session.\n\nNOTE: All other commands (add, edit, pairs, etc.) require the file to exist.\nAlways run "init" first before using any other command on a new file.')
     .action(async (filePath, options) => {
     await fs.ensureDir(path.dirname(filePath));
     let values = [];
@@ -170,12 +176,14 @@ program
     .description('Appends a new value to the specified CSV file.\nPerfect when the human names a new value during conversation.')
     .option('--tags <string>', 'Pipe-separated tags (e.g. "productivity|learning|habits")')
     .option('--desc <string>', 'Optional initial rationale/description')
-    .option('--detail', 'Prompt for more detail if value seems too broad')
+    .option('--detail', 'If set and title has fewer than 3 words, the value is NOT added. Instead a specificity warning is printed and the AI should rephrase with the human before retrying without --detail.')
     .action(async (filePath, title, options) => {
+    await requireFile(filePath);
     const values = await readValues(filePath);
     // Check for detail if --detail is used and title seems broad
     if (options.detail && title.split(' ').length < 3) {
-        console.log(`"${title}" seems broad. Consider making it more specific, e.g., "Daily Walking and Strength Training" instead of "Physical Fitness".`);
+        console.log(`NOT ADDED: "${title}" seems too broad (fewer than 3 words). Consider making it more specific, e.g., "Daily Walking and Strength Training" instead of "Physical Fitness". Rephrase with the human and retry without --detail.`);
+        process.exit(0);
     }
     const now = new Date().toISOString();
     const newValue = {
@@ -194,11 +202,12 @@ program
 });
 program
     .command('edit <file> <id>')
-    .description('Edits an existing value in the specified CSV file.')
+    .description('Edits an existing value in the specified CSV file.\nUse "edit" for quick metadata changes (title, tags, and/or rationale in one call).\nFor focused rationale refinement with a read-before-write pattern, prefer the "rationale" command instead.\n\nRequires the value ID. Use "list" or "top10" to find IDs for values.')
     .option('--title <string>', 'New title for the value')
     .option('--tags <string>', 'New pipe-separated tags')
     .option('--desc <string>', 'New rationale/description')
     .action(async (filePath, id, options) => {
+    await requireFile(filePath);
     const values = await readValues(filePath);
     const value = values.find(v => v.id === id);
     if (!value) {
@@ -218,10 +227,11 @@ program
 });
 program
     .command('rationale <file> <id>')
-    .description('Displays or updates the rationale for a specific value. Useful for refining why a value is important after interviews.\n\nWARNING: ALWAYS READ THE CURRENT RATIONALE BEFORE UPDATING IT.\nThis preserves existing insights and prevents accidental loss.')
+    .description('Displays or updates the rationale for a specific value. Useful for focused rationale refinement after interviews.\nUnlike "edit --desc", this command defaults to showing the current rationale first (read-before-write pattern).\n\nWARNING: ALWAYS call without --update first to READ the current rationale, THEN call again with --update to write.\nThis preserves existing insights and prevents accidental loss.\n\nRequires the value ID. Use "list", "top10", or "pairs" output to find IDs.')
     .option('--show', 'Only show the current rationale (default behavior)')
     .option('--update <string>', 'Update the rationale to this new string')
     .action(async (filePath, id, options) => {
+    await requireFile(filePath);
     const values = await readValues(filePath);
     const value = values.find(v => v.id === id);
     if (!value) {
@@ -242,8 +252,9 @@ program
 });
 program
     .command('remove <file> <id>')
-    .description('Removes a value from the specified CSV file.')
+    .description('Removes a value from the specified CSV file.\n\nRequires the value ID. Use "list" or "top10" to find IDs for values.')
     .action(async (filePath, id) => {
+    await requireFile(filePath);
     const values = await readValues(filePath);
     const index = values.findIndex(v => v.id === id);
     if (index === -1) {
@@ -259,6 +270,7 @@ program
     .description(`Generates a complete, ready-to-use interview protocol for you (the AI) to use with the human, emphasizing adding new values first and refining rationales.\n\nWARNING: ALWAYS READ THE CURRENT RATIONALE FOR A VALUE BEFORE UPDATING IT.\nThis prevents accidental loss of valuable insights accumulated during interviews.\n\nThe output contains:\n* Session header with the exact file being used\n* Full step-by-step interviewing protocol\n* Natural-language phrasing templates you can read or adapt\n* Objectivist-grounded probing questions\n\nRemember, start with the additive part: elicit new values as they emerge in conversation, and for each, probe deeply for their rationale (why this value is important). One effective technique is to generate 10 new potential values based on the existing hierarchy and suggest them to the user for selection (or they can propose their own). This is a fun little game that doesn't keep the conversation too slow. After adding values with rich rationales, use the separate "pairs" command to generate comparisons.\n\nThroughout the interview, emphasize improving rationales: After comparisons, ask "Why did you choose A over B?" and update the rationale accordingly using "edit" command.\n\nOPTIONS\n  --personality      Enable sophisticated, cultured personality mode (flag)\n\nAfter adding values and generating pairs, use "update-scores" command to apply results automatically.`)
     .option('--personality', 'Enable sophisticated, cultured personality mode (boolean flag)')
     .action(async (filePath, options) => {
+    await requireFile(filePath);
     const values = await readValues(filePath);
     const now = new Date().toISOString();
     const personality = options.personality ? 'cultured' : 'default';
@@ -278,6 +290,11 @@ program
     };
     const proto = protocols[personality];
     console.log(proto.header);
+    console.log('');
+    console.log('NOTE TO AI: This protocol is for YOUR reference only.');
+    console.log('Do NOT paste it verbatim to the human. Use it to guide the conversation naturally.');
+    console.log('Adapt the phrasing templates and probing questions to the flow of your dialogue.');
+    console.log('');
     console.log(`Session File: ${filePath}`);
     console.log(`Prepared At: ${now} (UTC)`);
     console.log('');
@@ -315,9 +332,10 @@ program
 });
 program
     .command('pairs <file>')
-    .description('Generates a list of N comparison pairs for the specified CSV file.\nPrioritizes least-compared values first. Use this after the additive part of the interview to get fresh comparisons including new values.\n\nOPTIONS\n  --num <number>    Number of comparisons to generate (default: 5)')
+    .description('Generates a list of N comparison pairs for the specified CSV file.\nPrioritizes least-compared values first, then switches to random selection once all values have >= 3 comparisons.\nUse this after the additive part of the interview to get fresh comparisons including new values.\n\nOutput is structured TOON format containing each pair\'s titles, IDs, and comparison counts.\nUse the TITLES (not IDs) when passing results to "update-scores --responses".\nUse the IDs when you need to call "edit", "remove", or "rationale" for a specific value.\n\nOPTIONS\n  --num <number>    Number of comparisons to generate (default: 5)')
     .option('--num <number>', 'Number of comparisons to generate', '5')
     .action(async (filePath, options) => {
+    await requireFile(filePath);
     const values = await readValues(filePath);
     if (values.length < 2) {
         console.error('Error: Need at least 2 values for pairs. Add more values first.');
@@ -347,17 +365,36 @@ program
     for (let i = 0; i < Math.min(num * 2, candidates.length - 1); i += 2) {
         pairs.push([candidates[i], candidates[i + 1]]);
     }
-    console.log(`COMPARISON PAIRS FOR ${filePath}:`);
-    pairs.forEach((pair, idx) => {
-        console.log(`${idx + 1}. ${pair[0].title} vs ${pair[1].title}`);
-    });
+    const data = {
+        type: 'comparison-pairs',
+        file: filePath,
+        timestamp: new Date().toISOString(),
+        totalValuesInFile: values.length,
+        pairs: pairs.map((pair, idx) => ({
+            pairNumber: idx + 1,
+            a: {
+                title: pair[0].title,
+                id: pair[0].id,
+                score: pair[0].score,
+                comparisonCount: pair[0].comparisonCount
+            },
+            b: {
+                title: pair[1].title,
+                id: pair[1].id,
+                score: pair[1].score,
+                comparisonCount: pair[1].comparisonCount
+            }
+        }))
+    };
+    console.log(toon.encode(data));
 });
 program
     .command('update-scores <file>')
-    .description('Updates scores and comparison counts based on interview responses.\nUse after an interview session to apply Elo-like adjustments automatically.')
-    .option('--responses <string>', 'Comma-separated responses, e.g., "A>B,C>D" where A wins over B, etc.')
+    .description('Updates scores and comparison counts based on interview responses.\nUse after an interview session to apply fixed-point score adjustments automatically.\n\nIMPORTANT: Responses use EXACT value TITLES (not IDs), case-sensitive.\nThe winner title goes LEFT of ">", the loser title goes RIGHT.\nMultiple responses are separated by commas.\n\nExample: --responses "Daily Walking>Physical Fitness,Reason>Purpose"\n\nIf a title is not found (exact match required), the command will exit with an error.')
+    .option('--responses <string>', 'Comma-separated responses using exact value titles: "WinnerTitle>LoserTitle,WinnerTitle>LoserTitle"')
     .option('--pairs <string>', 'The pairs used in the interview, as output by interview command (optional, for validation)')
     .action(async (filePath, options) => {
+    await requireFile(filePath);
     if (!options.responses) {
         console.error('Error: --responses is required.');
         process.exit(1);
@@ -377,7 +414,7 @@ program
             console.error(`Value not found: ${winner} or ${loser}`);
             process.exit(1);
         }
-        // Elo-like update: winner +10, loser -10 (simple for now)
+        // Fixed-point update: winner +10, loser -10 (not true Elo -- does not account for score differentials)
         winValue.score += 10;
         loseValue.score -= 10;
         winValue.comparisonCount += 1;
@@ -391,11 +428,12 @@ program
 program
     .command('top10 <file>')
     .description('Displays the current Top 10 values from the specified CSV file.\nThis is the primary view you should share with the human after every interview session.')
-    .option('--tag <tag>', 'Optional. Show only the Top 10 values that contain this tag')
+    .option('--tag <tag>', 'Optional. Filter to Top 10 values that have this exact tag (matched against pipe-separated tags)')
     .action(async (filePath, options) => {
+    await requireFile(filePath);
     let values = await readValues(filePath);
     if (options.tag) {
-        values = values.filter(v => v.tags.includes(options.tag));
+        values = values.filter(v => v.tags.split('|').includes(options.tag));
     }
     values.sort((a, b) => b.score - a.score);
     const top10 = values.slice(0, 10);
@@ -422,11 +460,12 @@ program
     .command('list <file>')
     .description('Lists all values in the hierarchy sorted by current score (highest first).')
     .option('--limit <number>', 'Limit the number of values shown')
-    .option('--tag <tag>', 'Show only values containing this tag')
+    .option('--tag <tag>', 'Filter to values that have this exact tag (matched against pipe-separated tags)')
     .action(async (filePath, options) => {
+    await requireFile(filePath);
     let values = await readValues(filePath);
     if (options.tag) {
-        values = values.filter(v => v.tags.includes(options.tag));
+        values = values.filter(v => v.tags.split('|').includes(options.tag));
     }
     values.sort((a, b) => b.score - a.score);
     if (options.limit) {
@@ -456,6 +495,7 @@ program
     .command('hierarchy <file>')
     .description('Displays the full ranked hierarchy grouped first by overall rank, then by tag clusters.\nExtremely useful when reviewing how values cluster around major life areas with the human.')
     .action(async (filePath) => {
+    await requireFile(filePath);
     const values = await readValues(filePath);
     values.sort((a, b) => b.score - a.score);
     const data = {
@@ -478,8 +518,9 @@ program
 });
 program
     .command('validate <file>')
-    .description('Validates the CSV file for integrity, duplicates, and suggestions for specificity.')
+    .description('Validates the CSV file for integrity, duplicates, and suggestions for specificity.\n\nBroadness heuristic: Titles with fewer than 3 words are flagged as potentially too broad.\nThis is a rough word-count check -- the AI should use its own judgment beyond this heuristic.')
     .action(async (filePath) => {
+    await requireFile(filePath);
     const values = await readValues(filePath);
     const issues = [];
     const titles = new Set();
@@ -510,8 +551,9 @@ program
 });
 program
     .command('stats <file>')
-    .description('Shows key statistics and insights about the current hierarchy:\n* Total values\n* Total comparisons performed\n* Least-compared values\n* Strongest tag clusters\n* Value Specificity Score\n* One-sentence insight for you (the AI) to share with the human')
+    .description('Shows key statistics and insights about the current hierarchy:\n* Total values\n* Total comparisons performed\n* Least-compared values\n* Strongest tag clusters\n* Value Specificity Score (average title word count -- higher is more specific)\n* One-sentence insight for you (the AI) to share with the human')
     .action(async (filePath) => {
+    await requireFile(filePath);
     const values = await readValues(filePath);
     const totalValues = values.length;
     const totalComparisons = values.reduce((sum, v) => sum + v.comparisonCount, 0);
