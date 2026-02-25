@@ -16,19 +16,19 @@ program
     'PURPOSE\n' +
     'This CLI exists solely for use by an AI assistant during live conversations with a human.  \n' +
     'It helps the AI systematically elicit, refine, and maintain the human\'s personal Objectivist value hierarchy (life as the ultimate standard of value, productive achievement as the central integrating purpose).\n\n' +
-    'Each hierarchy lives in its own single, portable file named <name>.values.csv (e.g. personal.values.csv, career.values.csv, 2026-review.values.csv).\n\n' +
+    'Each hierarchy lives in its own single, portable CSV file.\n\n' +
     'RECOMMENDED AI WORKFLOW DURING A CONVERSATION\n' +
-    '1. value-hierarchy init personal.values.csv\n' +
-    '2. value-hierarchy add personal.values.csv "New Value" --tags "tag1|tag2" --detail\n' +
-    '3. value-hierarchy interview personal.values.csv --personality\n' +
+    '1. value-hierarchy init personal.csv\n' +
+    '2. value-hierarchy add personal.csv "New Value" --tags "tag1|tag2" --detail\n' +
+    '3. value-hierarchy interview personal.csv --personality\n' +
     '   -> Use the generated protocol to interview the human naturally, adding new values as they emerge\n' +
-    '4. value-hierarchy pairs personal.values.csv --num 5\n' +
+    '4. value-hierarchy pairs personal.csv --num 5\n' +
     '   -> Generate comparison pairs including new vs old and old vs old\n' +
-    '5. After the human answers, value-hierarchy update-scores personal.values.csv --responses "A>B,C>D"\n' +
-    '6. value-hierarchy top10 personal.values.csv\n' +
+    '5. After the human answers, value-hierarchy update-scores personal.csv --responses "A>B,C>D"\n' +
+    '6. value-hierarchy top10 personal.csv\n' +
     '   -> Show the human their updated ranking immediately\n\n' +
     'COMMANDS\n' +
-    '  init <file>                        Create a new .values.csv hierarchy file\n' +
+    '  init <file>                        Create a new CSV hierarchy file\n' +
     '  add <file> <title> [--detail]        Add a new value to the hierarchy\n' +
     '  edit <file> <id> [--title] [--tags] [--desc] Edit an existing value\n' +
     '  rationale <file> <id> [--update]    Display or update the rationale for a value\n' +
@@ -48,12 +48,12 @@ program
     '  -h, --help        display help for command\n' +
     '  -v, --version     output the version number\n\n' +
     'EXAMPLES\n' +
-    '  value-hierarchy init ./personal.values.csv\n' +
-    '  value-hierarchy add personal.values.csv "Daily Walking" --detail\n' +
-    '  value-hierarchy interview ~/hierarchies/career.values.csv --personality\n' +
-    '  value-hierarchy pairs personal.values.csv --num 5\n' +
-    '  value-hierarchy update-scores personal.values.csv --responses "Life>Health,Reason>Purpose"\n' +
-    '  value-hierarchy top10 personal.values.csv --tag productivity\n\n' +
+    '  value-hierarchy init ./personal.csv\n' +
+    '  value-hierarchy add personal.csv "Daily Walking" --detail\n' +
+    '  value-hierarchy interview ~/hierarchies/career.csv --personality\n' +
+    '  value-hierarchy pairs personal.csv --num 5\n' +
+    '  value-hierarchy update-scores personal.csv --responses "Life>Health,Reason>Purpose"\n' +
+    '  value-hierarchy top10 personal.csv --tag productivity\n\n' +
     'Run "value-hierarchy <command> --help" for detailed help on a command.'
   )
   .version('0.0.6');
@@ -87,12 +87,7 @@ function loadTags(): string[] {
   return fallbackTags;
 }
 
-function validateFile(filePath: string): void {
-  if (!filePath.endsWith('.values.csv')) {
-    console.error(`Error: --file must point to a file ending with .values.csv. You provided: ${filePath}`);
-    process.exit(1);
-  }
-}
+
 
 async function readValues(filePath: string): Promise<Value[]> {
   const values: Value[] = [];
@@ -146,9 +141,8 @@ function generateId(title: string): string {
 
 program
   .command('init <file>')
-  .description('Creates a new .values.csv file at the exact path you specify (creates parent directories if needed).\nUse this once per new hierarchy you are helping a human build.')
+  .description('Creates a new CSV file at the exact path you specify (creates parent directories if needed).\nUse this once per new hierarchy you are helping a human build.')
   .action(async (filePath, options) => {
-    validateFile(filePath);
     await fs.ensureDir(path.dirname(filePath));
     let values: Value[] = [];
     await writeValues(filePath, values);
@@ -157,12 +151,11 @@ program
 
 program
   .command('add <file> <title>')
-  .description('Appends a new value to the specified .values.csv file.\nPerfect when the human names a new value during conversation.')
+  .description('Appends a new value to the specified CSV file.\nPerfect when the human names a new value during conversation.')
   .option('--tags <string>', 'Pipe-separated tags (e.g. "productivity|learning|habits")')
   .option('--desc <string>', 'Optional initial rationale/description')
   .option('--detail', 'Prompt for more detail if value seems too broad')
   .action(async (filePath, title, options) => {
-    validateFile(filePath);
     const values = await readValues(filePath);
     // Check for detail if --detail is used and title seems broad
     if (options.detail && title.split(' ').length < 3) {
@@ -186,12 +179,11 @@ program
 
 program
   .command('edit <file> <id>')
-  .description('Edits an existing value in the specified .values.csv file.')
+  .description('Edits an existing value in the specified CSV file.')
   .option('--title <string>', 'New title for the value')
   .option('--tags <string>', 'New pipe-separated tags')
   .option('--desc <string>', 'New rationale/description')
   .action(async (filePath, id, options) => {
-    validateFile(filePath);
     const values = await readValues(filePath);
     const value = values.find(v => v.id === id);
     if (!value) {
@@ -213,7 +205,6 @@ program
   .option('--show', 'Only show the current rationale (default behavior)')
   .option('--update <string>', 'Update the rationale to this new string')
   .action(async (filePath, id, options) => {
-    validateFile(filePath);
     const values = await readValues(filePath);
     const value = values.find(v => v.id === id);
     if (!value) {
@@ -234,9 +225,8 @@ program
 
 program
   .command('remove <file> <id>')
-  .description('Removes a value from the specified .values.csv file.')
+  .description('Removes a value from the specified CSV file.')
   .action(async (filePath, id) => {
-    validateFile(filePath);
     const values = await readValues(filePath);
     const index = values.findIndex(v => v.id === id);
     if (index === -1) {
@@ -250,10 +240,9 @@ program
 
 program
   .command('interview <file>')
-  .description(`Generates a complete, ready-to-use interview protocol for you (the AI) to use with the human, emphasizing adding new values first and refining rationales.\n\nThe output contains:\n* Session header with the exact file being used\n* Full step-by-step interviewing protocol\n* Natural-language phrasing templates you can read or adapt\n* Objectivist-grounded probing questions\n\nRemember, start with the additive part: elicit new values as they emerge in conversation, and for each, probe deeply for their rationale (why this value is important). One effective technique is looking at existing values and suggesting 10 potential value options speculated on based on existing ones for the user to choose from (or obviously writing their own values). This is a fun little game that doesn't keep the conversation too slow. After adding values with rich rationales, use the separate "pairs" command to generate comparisons.\n\nThroughout the interview, emphasize improving rationales: After comparisons, ask "Why did you choose A over B?" and update the rationale accordingly using "edit" command.\n\nOPTIONS\n  --personality      Enable sophisticated, cultured personality mode (flag)\n\nAfter adding values and generating pairs, use "update-scores" command to apply results automatically.`)
+  .description(`Generates a complete, ready-to-use interview protocol for you (the AI) to use with the human, emphasizing adding new values first and refining rationales.\n\nThe output contains:\n* Session header with the exact file being used\n* Full step-by-step interviewing protocol\n* Natural-language phrasing templates you can read or adapt\n* Objectivist-grounded probing questions\n\nRemember, start with the additive part: elicit new values as they emerge in conversation, and for each, probe deeply for their rationale (why this value is important). One effective technique is to generate 10 new potential values based on the existing hierarchy and suggest them to the user for selection (or they can propose their own). This is a fun little game that doesn't keep the conversation too slow. After adding values with rich rationales, use the separate "pairs" command to generate comparisons.\n\nThroughout the interview, emphasize improving rationales: After comparisons, ask "Why did you choose A over B?" and update the rationale accordingly using "edit" command.\n\nOPTIONS\n  --personality      Enable sophisticated, cultured personality mode (flag)\n\nAfter adding values and generating pairs, use "update-scores" command to apply results automatically.`)
   .option('--personality', 'Enable sophisticated, cultured personality mode (boolean flag)')
   .action(async (filePath, options) => {
-    validateFile(filePath);
     const values = await readValues(filePath);
     const now = new Date().toISOString();
     const personality = options.personality ? 'cultured' : 'default';
@@ -311,10 +300,9 @@ program
 
 program
   .command('pairs <file>')
-  .description('Generates a list of N comparison pairs for the specified .values.csv file.\nPrioritizes least-compared values first. Use this after the additive part of the interview to get fresh comparisons including new values.\n\nOPTIONS\n  --num <number>    Number of comparisons to generate (default: 5)')
+  .description('Generates a list of N comparison pairs for the specified CSV file.\nPrioritizes least-compared values first. Use this after the additive part of the interview to get fresh comparisons including new values.\n\nOPTIONS\n  --num <number>    Number of comparisons to generate (default: 5)')
   .option('--num <number>', 'Number of comparisons to generate', '5')
   .action(async (filePath, options) => {
-    validateFile(filePath);
     const values = await readValues(filePath);
     if (values.length < 2) {
       console.error('Error: Need at least 2 values for pairs. Add more values first.');
@@ -355,7 +343,6 @@ program
   .option('--responses <string>', 'Comma-separated responses, e.g., "A>B,C>D" where A wins over B, etc.')
   .option('--pairs <string>', 'The pairs used in the interview, as output by interview command (optional, for validation)')
   .action(async (filePath, options) => {
-    validateFile(filePath);
     if (!options.responses) {
       console.error('Error: --responses is required.');
       process.exit(1);
@@ -389,10 +376,9 @@ program
 
 program
   .command('top10 <file>')
-  .description('Displays the current Top 10 values from the specified .values.csv file.\nThis is the primary view you should share with the human after every interview session.')
+  .description('Displays the current Top 10 values from the specified CSV file.\nThis is the primary view you should share with the human after every interview session.')
   .option('--tag <tag>', 'Optional. Show only the Top 10 values that contain this tag')
   .action(async (filePath, options) => {
-    validateFile(filePath);
     let values = await readValues(filePath);
     if (options.tag) {
       values = values.filter(v => v.tags.includes(options.tag));
@@ -425,7 +411,6 @@ program
   .option('--limit <number>', 'Limit the number of values shown')
   .option('--tag <tag>', 'Show only values containing this tag')
   .action(async (filePath, options) => {
-    validateFile(filePath);
     let values = await readValues(filePath);
     if (options.tag) {
       values = values.filter(v => v.tags.includes(options.tag));
@@ -459,7 +444,6 @@ program
   .command('hierarchy <file>')
   .description('Displays the full ranked hierarchy grouped first by overall rank, then by tag clusters.\nExtremely useful when reviewing how values cluster around major life areas with the human.')
   .action(async (filePath) => {
-    validateFile(filePath);
     const values = await readValues(filePath);
     values.sort((a, b) => b.score - a.score);
     const data = {
@@ -483,9 +467,8 @@ program
 
 program
   .command('validate <file>')
-  .description('Validates the .values.csv file for integrity, duplicates, and suggestions for specificity.')
+  .description('Validates the CSV file for integrity, duplicates, and suggestions for specificity.')
   .action(async (filePath) => {
-    validateFile(filePath);
     const values = await readValues(filePath);
     const issues: string[] = [];
     const titles = new Set<string>();
@@ -517,7 +500,6 @@ program
   .command('stats <file>')
   .description('Shows key statistics and insights about the current hierarchy:\n* Total values\n* Total comparisons performed\n* Least-compared values\n* Strongest tag clusters\n* Value Specificity Score\n* One-sentence insight for you (the AI) to share with the human')
   .action(async (filePath) => {
-    validateFile(filePath);
     const values = await readValues(filePath);
     const totalValues = values.length;
     const totalComparisons = values.reduce((sum, v) => sum + v.comparisonCount, 0);
