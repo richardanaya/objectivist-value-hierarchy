@@ -19,27 +19,35 @@ program
     'Each hierarchy lives in its own single, portable file named <name>.values.csv (e.g. personal.values.csv, career.values.csv, 2026-review.values.csv).\n\n' +
     'RECOMMENDED AI WORKFLOW DURING A CONVERSATION\n' +
     '1. value-hierarchy init --seed personal.values.csv\n' +
-    '2. value-hierarchy add personal.values.csv "New Value" --tags "tag1|tag2"\n' +
-    '3. value-hierarchy interview personal.values.csv --num 5\n' +
+    '2. value-hierarchy add personal.values.csv "New Value" --tags "tag1|tag2" --detail\n' +
+    '3. value-hierarchy interview personal.values.csv --num 5 --personality friendly-british\n' +
     '   → Use the generated protocol to interview the human naturally\n' +
-    '4. After the human answers, manually edit the .values.csv file to update scores and comparisonCount\n' +
+    '4. After the human answers, value-hierarchy update-scores personal.values.csv --responses "A>B,C>D"\n' +
     '5. value-hierarchy top10 personal.values.csv\n' +
     '   → Show the human their updated ranking immediately\n\n' +
     'COMMANDS\n' +
     '  init <file> [--seed]                Create a new .values.csv hierarchy file\n' +
-    '  add <file> <title>                  Add a new value to the hierarchy\n' +
-    '  interview <file> [--num N]          Generate full interview protocol + comparison pairs\n' +
+    '  add <file> <title> [--detail]        Add a new value to the hierarchy\n' +
+    '  edit <file> <id> [--title] [--tags] [--desc] Edit an existing value\n' +
+    '  remove <file> <id>                  Remove a value from the hierarchy\n' +
+    '  interview <file> [--num N] [--personality] Generate full interview protocol + comparison pairs\n' +
+    '  update-scores <file> --responses     Apply Elo-like score updates from interview responses\n' +
     '  top10 <file> [--tag TAG]            Show the current Top 10 values (primary view to share with human)\n' +
     '  list <file> [--limit N] [--tag TAG] List all values sorted by importance\n' +
     '  hierarchy <file>                    Show full hierarchy grouped by tags\n' +
+    '  validate <file>                     Check file integrity and suggest improvements\n' +
     '  stats <file>                        Show statistics and insights\n' +
-    '  tags                         Show master tag list from objectivist-lattice\n\n' +
+    '  guide                               Show value specificity guidelines\n' +
+    '  feedback <message>                  Log feedback for improvements\n' +
+    '  tags                                Show master tag list from objectivist-lattice\n\n' +
     'OPTIONS\n' +
     '  -h, --help        display help for command\n' +
     '  -v, --version     output the version number\n\n' +
     'EXAMPLES\n' +
     '  value-hierarchy init --seed ./personal.values.csv\n' +
-    '  value-hierarchy interview ~/hierarchies/career.values.csv --num 5\n' +
+    '  value-hierarchy add personal.values.csv "Daily Walking" --detail\n' +
+    '  value-hierarchy interview ~/hierarchies/career.values.csv --num 5 --personality friendly-british\n' +
+    '  value-hierarchy update-scores personal.values.csv --responses "Life>Health,Reason>Purpose"\n' +
     '  value-hierarchy top10 personal.values.csv --tag productivity\n\n' +
     'Run "value-hierarchy <command> --help" for detailed help on a command.'
   )
@@ -168,9 +176,14 @@ program
   .description('Appends a new value to the specified .values.csv file.\nPerfect when the human names a new value during conversation.')
   .option('--tags <string>', 'Pipe-separated tags (e.g. "productivity|learning|habits")')
   .option('--desc <string>', 'Optional initial rationale/description')
+  .option('--detail', 'Prompt for more detail if value seems too broad')
   .action(async (filePath, title, options) => {
     validateFile(filePath);
     const values = await readValues(filePath);
+    // Check for detail if --detail is used and title seems broad
+    if (options.detail && title.split(' ').length < 3) {
+      console.log(`"${title}" seems broad. Consider making it more specific, e.g., "Daily Walking and Strength Training" instead of "Physical Fitness".`);
+    }
     const now = new Date().toISOString();
     const newValue: Value = {
       id: generateId(title),
@@ -188,9 +201,49 @@ program
   });
 
 program
+  .command('edit <file> <id>')
+  .description('Edits an existing value in the specified .values.csv file.')
+  .option('--title <string>', 'New title for the value')
+  .option('--tags <string>', 'New pipe-separated tags')
+  .option('--desc <string>', 'New rationale/description')
+  .action(async (filePath, id, options) => {
+    validateFile(filePath);
+    const values = await readValues(filePath);
+    const value = values.find(v => v.id === id);
+    if (!value) {
+      console.error(`Error: Value with id "${id}" not found.`);
+      process.exit(1);
+    }
+    const now = new Date().toISOString();
+    if (options.title) value.title = options.title;
+    if (options.tags !== undefined) value.tags = options.tags;
+    if (options.desc) value.rationale = options.desc;
+    value.updatedAt = now;
+    await writeValues(filePath, values);
+    console.log(`Edited value "${id}" in ${filePath}`);
+  });
+
+program
+  .command('remove <file> <id>')
+  .description('Removes a value from the specified .values.csv file.')
+  .action(async (filePath, id) => {
+    validateFile(filePath);
+    const values = await readValues(filePath);
+    const index = values.findIndex(v => v.id === id);
+    if (index === -1) {
+      console.error(`Error: Value with id "${id}" not found.`);
+      process.exit(1);
+    }
+    values.splice(index, 1);
+    await writeValues(filePath, values);
+    console.log(`Removed value "${id}" from ${filePath}`);
+  });
+
+program
   .command('interview <file>')
-  .description('Generates a complete, ready-to-use interview protocol plus N comparison pairs for you (the AI) to use with the human.\n\nThe output contains:\n• Session header with the exact file being used\n• Full step-by-step interviewing protocol\n• Natural-language phrasing templates you can read or adapt\n• Objectivist-grounded probing questions\n• List of comparison pairs (prioritizes least-compared values first)\n\nOPTIONS\n  --num <number>    Number of comparisons to generate (default: 5)\n\nAfter the session, open the .values.csv file yourself and update the score and comparisonCount columns for the involved values.')
+  .description('Generates a complete, ready-to-use interview protocol plus N comparison pairs for you (the AI) to use with the human.\n\nThe output contains:\n• Session header with the exact file being used\n• Full step-by-step interviewing protocol\n• Natural-language phrasing templates you can read or adapt\n• Objectivist-grounded probing questions\n• List of comparison pairs (prioritizes least-compared values first)\n\nOPTIONS\n  --num <number>    Number of comparisons to generate (default: 5)\n  --personality <type>  Interviewer personality (friendly-british, default, etc.)\n\nAfter the session, use "update-scores" command to apply results automatically.')
   .option('--num <number>', 'Number of comparisons to generate', '5')
+  .option('--personality <type>', 'Interviewer personality mode', 'default')
   .action(async (filePath, options) => {
     validateFile(filePath);
     const values = await readValues(filePath);
@@ -222,16 +275,32 @@ program
       pairs.push([candidates[i], candidates[i + 1]]);
     }
     const now = new Date().toISOString();
-    console.log('=== VALUE-HIERARCHY INTERVIEW SESSION PREPARED FOR AI AGENT ===');
+    const personality = options.personality;
+    const protocols: { [key: string]: { header: string; intro: string; remind: string; update: string; } } = {
+      default: {
+        header: '=== VALUE-HIERARCHY INTERVIEW SESSION PREPARED FOR AI AGENT ===',
+        intro: '1. Introduce the session: "I\'m going to ask you to compare some of your values to help refine your hierarchy."',
+        remind: '4. Remind: "Remember, this hierarchy is always revisable. Inconsistencies resolve through more comparisons."',
+        update: '5. After all pairs, run "value-hierarchy update-scores <file> --responses \'A>B,C>D\'" to update scores automatically.'
+      },
+      'friendly-british': {
+        header: '=== CHEERS TO YOUR VALUE HIERARCHY SESSION, MATE! ===',
+        intro: '1. Kick off the chat: "Fancy a bit of a natter about your values? Let\'s compare a few to sharpen things up."',
+        remind: '4. Gently remind: "Remember, old chap, this is all about refining your priorities—nothing\'s set in stone."',
+        update: '5. After the lot, use "value-hierarchy update-scores <file> --responses \'A>B,C>D\'" to tally the scores seamlessly.'
+      }
+    };
+    const proto = protocols[personality] || protocols.default;
+    console.log(proto.header);
     console.log(`Session File: ${filePath}`);
     console.log(`Prepared At: ${now} (UTC)`);
     console.log('');
     console.log('STEP-BY-STEP INTERVIEWING PROTOCOL:');
-    console.log('1. Introduce the session: "I\'m going to ask you to compare some of your values to help refine your hierarchy."');
-    console.log('2. For each pair, read the phrasing template below, substituting the value titles.');
-    console.log('3. After each comparison, note the human\'s choice and rationale.');
-    console.log('4. Remind: "Remember, this hierarchy is always revisable. Inconsistencies resolve through more comparisons."');
-    console.log('5. After all pairs, update the .csv manually: increase comparisonCount by 1 for both values, adjust scores based on Elo-like system (winner +10, loser -10 or similar).');
+    console.log(proto.intro);
+    console.log('2. For each pair, use the friendly phrasing templates below, swapping in the value titles.');
+    console.log('3. After each comparison, jot down the human\'s pick and why.');
+    console.log(proto.remind);
+    console.log(proto.update);
     console.log('');
     console.log('NATURAL-LANGUAGE PHRASE TEMPLATES:');
     console.log('• "Between [Value A] and [Value B], which is more important to you right now, and why?"');
@@ -247,6 +316,44 @@ program
     pairs.forEach((pair, idx) => {
       console.log(`${idx + 1}. ${pair[0].title} vs ${pair[1].title}`);
     });
+  });
+
+program
+  .command('update-scores <file>')
+  .description('Updates scores and comparison counts based on interview responses.\nUse after an interview session to apply Elo-like adjustments automatically.')
+  .option('--responses <string>', 'Comma-separated responses, e.g., "A>B,C>D" where A wins over B, etc.')
+  .option('--pairs <string>', 'The pairs used in the interview, as output by interview command (optional, for validation)')
+  .action(async (filePath, options) => {
+    validateFile(filePath);
+    if (!options.responses) {
+      console.error('Error: --responses is required.');
+      process.exit(1);
+    }
+    const values = await readValues(filePath);
+    const responses = options.responses.split(',');
+    const now = new Date().toISOString();
+    responses.forEach((resp: string) => {
+      const [winner, loser] = resp.split('>');
+      if (!winner || !loser) {
+        console.error(`Invalid response format: ${resp}. Expected "Winner>Loser".`);
+        process.exit(1);
+      }
+      const winValue = values.find(v => v.title === winner.trim());
+      const loseValue = values.find(v => v.title === loser.trim());
+      if (!winValue || !loseValue) {
+        console.error(`Value not found: ${winner} or ${loser}`);
+        process.exit(1);
+      }
+      // Elo-like update: winner +10, loser -10 (simple for now)
+      winValue.score += 10;
+      loseValue.score -= 10;
+      winValue.comparisonCount += 1;
+      loseValue.comparisonCount += 1;
+      winValue.updatedAt = now;
+      loseValue.updatedAt = now;
+    });
+    await writeValues(filePath, values);
+    console.log(`Updated scores for ${responses.length} comparisons in ${filePath}`);
   });
 
 program
@@ -344,8 +451,40 @@ program
   });
 
 program
+  .command('validate <file>')
+  .description('Validates the .values.csv file for integrity, duplicates, and suggestions for specificity.')
+  .action(async (filePath) => {
+    validateFile(filePath);
+    const values = await readValues(filePath);
+    const issues: string[] = [];
+    const titles = new Set<string>();
+    values.forEach(v => {
+      if (titles.has(v.title)) issues.push(`Duplicate title: ${v.title}`);
+      titles.add(v.title);
+      if (v.title.split(' ').length < 3) issues.push(`Value "${v.title}" may be too broad; consider more detail.`);
+    });
+    if (issues.length === 0) {
+      console.log(`${filePath} is valid.`);
+    } else {
+      console.log('Issues found:');
+      issues.forEach(issue => console.log(`- ${issue}`));
+    }
+  });
+
+program
+  .command('guide')
+  .description('Displays guidelines for value specificity and Objectivist principles.')
+  .action(() => {
+    console.log('VALUE SPECIFICITY GUIDELINES:');
+    console.log('• Values should be actionable and personal, e.g., "Writing Tech Articles" not just "Writing".');
+    console.log('• Capture specific actions, contexts, or emotions, e.g., "Exploring Food with Wife" instead of "Family Exploration".');
+    console.log('• Align with Objectivism: Life as ultimate value, productive achievement as central purpose.');
+    console.log('• Examples: "Daily Walking and Strength Training", "Epistemology in AI Research", "Being a Family Man with Wife and Kids".');
+  });
+
+program
   .command('stats <file>')
-  .description('Shows key statistics and insights about the current hierarchy:\n• Total values\n• Total comparisons performed\n• Least-compared values\n• Strongest tag clusters\n• One-sentence insight for you (the AI) to share with the human')
+  .description('Shows key statistics and insights about the current hierarchy:\n• Total values\n• Total comparisons performed\n• Least-compared values\n• Strongest tag clusters\n• Value Specificity Score\n• One-sentence insight for you (the AI) to share with the human')
   .action(async (filePath) => {
     validateFile(filePath);
     const values = await readValues(filePath);
@@ -359,6 +498,8 @@ program
       });
     });
     const strongestTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const avgTitleLength = values.reduce((sum, v) => sum + v.title.split(' ').length, 0) / totalValues;
+    const specificityScore = Math.round(avgTitleLength * 10) / 10; // e.g., 3.2
     const data = {
       type: 'stats',
       file: filePath,
@@ -367,9 +508,18 @@ program
       totalComparisons,
       leastComparedValues: leastCompared.map(v => v.title),
       strongestTagClusters: strongestTags.map(([tag, count]) => ({ tag, count })),
+      valueSpecificityScore: specificityScore,
       insight: `Your hierarchy shows a strong focus on ${strongestTags[0]?.[0] || 'core values'}, with ${totalComparisons} comparisons refining your priorities.`
     };
     console.log(toon.encode(data));
+  });
+
+program
+  .command('feedback <message>')
+  .description('Logs user feedback for future improvements. Message can be a string describing issues or suggestions.')
+  .action((message) => {
+    // For now, just log to console; in future, could save to file or send somewhere
+    console.log(`Feedback logged: ${message}`);
   });
 
 program
