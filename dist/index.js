@@ -235,9 +235,9 @@ program
 });
 program
     .command('interview <file>')
-    .description('Generates a complete, ready-to-use interview protocol plus N comparison pairs for you (the AI) to use with the human.\n\nThe output contains:\n• Session header with the exact file being used\n• Full step-by-step interviewing protocol\n• Natural-language phrasing templates you can read or adapt\n• Objectivist-grounded probing questions\n• List of comparison pairs (prioritizes least-compared values first)\n\nOPTIONS\n  --num <number>    Number of comparisons to generate (default: 5)\n  --personality <type>  Interviewer personality (friendly-british, default, etc.)\n\nAfter the session, use "update-scores" command to apply results automatically.')
+    .description('Generates a complete, ready-to-use interview protocol plus N comparison pairs for you (the AI) to use with the human.\n\nThe output contains:\n• Session header with the exact file being used\n• Full step-by-step interviewing protocol\n• Natural-language phrasing templates you can read or adapt\n• Objectivist-grounded probing questions\n• List of comparison pairs (prioritizes least-compared values first)\n\nRemember, a great interview is a mix of comparing existing values and adding new ones as they emerge in conversation.\n\nOPTIONS\n  --num <number>    Number of comparisons to generate (default: 5)\n  --personality      Use sophisticated, cultured personality mode\n\nAfter the session, use "update-scores" command to apply results automatically.')
     .option('--num <number>', 'Number of comparisons to generate', '5')
-    .option('--personality <type>', 'Interviewer personality mode', 'default')
+    .option('--personality', 'Use sophisticated, cultured personality mode')
     .action(async (filePath, options) => {
     validateFile(filePath);
     const values = await readValues(filePath);
@@ -270,7 +270,7 @@ program
         pairs.push([candidates[i], candidates[i + 1]]);
     }
     const now = new Date().toISOString();
-    const personality = options.personality;
+    const personality = options.personality ? 'cultured' : 'default';
     const protocols = {
         default: {
             header: '=== VALUE-HIERARCHY INTERVIEW SESSION PREPARED FOR AI AGENT ===',
@@ -278,18 +278,28 @@ program
             remind: '4. Remind: "Remember, this hierarchy is always revisable. Inconsistencies resolve through more comparisons."',
             update: '5. After all pairs, run "value-hierarchy update-scores <file> --responses \'A>B,C>D\'" to update scores automatically.'
         },
-        'friendly-british': {
-            header: '=== CHEERS TO YOUR VALUE HIERARCHY SESSION, MATE! ===',
-            intro: '1. Kick off the chat: "Fancy a bit of a natter about your values? Let\'s compare a few to sharpen things up."',
-            remind: '4. Gently remind: "Remember, old chap, this is all about refining your priorities—nothing\'s set in stone."',
-            update: '5. After the lot, use "value-hierarchy update-scores <file> --responses \'A>B,C>D\'" to tally the scores seamlessly.'
+        cultured: {
+            header: '=== DELVING DEEP INTO YOUR VALUE HIERARCHY ===',
+            intro: '1. Start the conversation: "Oh, let\'s not skimp on the depths here, shall we? Comparing these values will help us uncover the profound layers of your priorities."',
+            remind: '4. Remind gently: "Remember, this hierarchy is yours to shape—let\'s explore until we hit bedrock."',
+            update: '5. After all pairs, run "value-hierarchy update-scores <file> --responses \'A>B,C>D\'" to apply the insights seamlessly.'
         }
     };
-    const proto = protocols[personality] || protocols.default;
+    const proto = protocols[personality];
     console.log(proto.header);
     console.log(`Session File: ${filePath}`);
     console.log(`Prepared At: ${now} (UTC)`);
     console.log('');
+    if (personality === 'cultured') {
+        console.log('PERSONALITY MODE: SOPHISTICATED AND CULTURED');
+        console.log('');
+        console.log('This mode adopts a refined, intellectual tone, blending a hint of pretentiousness with genuine friendliness. The AI interviewer speaks with eloquence and wit, encouraging deep exploration of your values rather than superficial comparisons. It positions the conversation as an opportunity for profound self-discovery, much like a cultured mentor guiding you through layers of personal philosophy.');
+        console.log('');
+        console.log('Expect phrases that evoke sophistication and warmth, such as urging to "not skimp on the depths" or exploring "profound layers." The focus is on going deep, reminding you that your value hierarchy is malleable and worth thorough examination. This creates an engaging dialogue where comparisons become springboards for richer insights, aligned with Objectivist principles of life as the ultimate value and productive achievement as the central purpose.');
+        console.log('');
+        console.log('Ultimately, this personality turns the interview into a memorable, insightful experience. It balances snooty charm with approachable depth, fostering intellectual camaraderie. By delving into the "bedrock" of your priorities, it helps build not just a ranked list, but a deeply reflective understanding of what drives you, leading to more concrete actions in daily life.');
+        console.log('');
+    }
     console.log('STEP-BY-STEP INTERVIEWING PROTOCOL:');
     console.log(proto.intro);
     console.log('2. For each pair, use the friendly phrasing templates below, swapping in the value titles.');
