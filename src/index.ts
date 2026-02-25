@@ -20,11 +20,11 @@ program
     'RECOMMENDED AI WORKFLOW DURING A CONVERSATION\n' +
     '1. value-hierarchy init personal.values.csv\n' +
     '2. value-hierarchy add personal.values.csv "New Value" --tags "tag1|tag2" --detail\n' +
-    '3. value-hierarchy interview personal.values.csv --num 5 --personality friendly-british\n' +
-    '   → Use the generated protocol to interview the human naturally\n' +
+    '3. value-hierarchy interview personal.values.csv --num 5 --personality\n' +
+    '   -> Use the generated protocol to interview the human naturally\n' +
     '4. After the human answers, value-hierarchy update-scores personal.values.csv --responses "A>B,C>D"\n' +
     '5. value-hierarchy top10 personal.values.csv\n' +
-    '   → Show the human their updated ranking immediately\n\n' +
+    '   -> Show the human their updated ranking immediately\n\n' +
     'COMMANDS\n' +
     '  init <file>                        Create a new .values.csv hierarchy file\n' +
     '  add <file> <title> [--detail]        Add a new value to the hierarchy\n' +
@@ -46,12 +46,12 @@ program
     'EXAMPLES\n' +
     '  value-hierarchy init ./personal.values.csv\n' +
     '  value-hierarchy add personal.values.csv "Daily Walking" --detail\n' +
-    '  value-hierarchy interview ~/hierarchies/career.values.csv --num 5 --personality friendly-british\n' +
+    '  value-hierarchy interview ~/hierarchies/career.values.csv --num 5 --personality\n' +
     '  value-hierarchy update-scores personal.values.csv --responses "Life>Health,Reason>Purpose"\n' +
     '  value-hierarchy top10 personal.values.csv --tag productivity\n\n' +
     'Run "value-hierarchy <command> --help" for detailed help on a command.'
   )
-  .version('0.0.0');
+  .version('0.0.4');
 
 interface Value {
   id: string;
@@ -220,9 +220,9 @@ program
 
 program
   .command('interview <file>')
-  .description('Generates a complete, ready-to-use interview protocol plus N comparison pairs for you (the AI) to use with the human.\n\nThe output contains:\n• Session header with the exact file being used\n• Full step-by-step interviewing protocol\n• Natural-language phrasing templates you can read or adapt\n• Objectivist-grounded probing questions\n• List of comparison pairs (prioritizes least-compared values first)\n\nRemember, a great interview is a mix of comparing existing values and adding new ones as they emerge in conversation.\n\nOPTIONS\n  --num <number>    Number of comparisons to generate (default: 5)\n  --personality      Use sophisticated, cultured personality mode\n\nAfter the session, use "update-scores" command to apply results automatically.')
+  .description(`Generates a complete, ready-to-use interview protocol plus N comparison pairs for you (the AI) to use with the human.\n\nThe output contains:\n* Session header with the exact file being used\n* Full step-by-step interviewing protocol\n* Natural-language phrasing templates you can read or adapt\n* Objectivist-grounded probing questions\n* List of comparison pairs (prioritizes least-compared values first)\n\nRemember, a great interview is a mix of comparing existing values and adding new ones as they emerge in conversation. One effective technique is looking at existing values and suggesting 10 potential value options speculated on based on existing ones for the user to choose from (or obviously writing their own values). This is a fun little game that doesn't keep the conversation too slow.\n\nOPTIONS\n  --num <number>    Number of comparisons to generate (default: 5)\n  --personality      Enable sophisticated, cultured personality mode (flag)\n\nAfter the session, use "update-scores" command to apply results automatically.`)
   .option('--num <number>', 'Number of comparisons to generate', '5')
-  .option('--personality', 'Use sophisticated, cultured personality mode')
+  .option('--personality', 'Enable sophisticated, cultured personality mode (boolean flag)')
   .action(async (filePath, options) => {
     validateFile(filePath);
     const values = await readValues(filePath);
@@ -265,7 +265,7 @@ program
       cultured: {
         header: '=== DELVING DEEP INTO YOUR VALUE HIERARCHY ===',
         intro: '1. Start the conversation: "Oh, let\'s not skimp on the depths here, shall we? Comparing these values will help us uncover the profound layers of your priorities."',
-        remind: '4. Remind gently: "Remember, this hierarchy is yours to shape—let\'s explore until we hit bedrock."',
+        remind: '4. Remind gently: "Remember, this hierarchy is yours to shape - let\'s explore until we hit bedrock."',
         update: '5. After all pairs, run "value-hierarchy update-scores <file> --responses \'A>B,C>D\'" to apply the insights seamlessly.'
       }
     };
@@ -292,14 +292,14 @@ program
     console.log(proto.update);
     console.log('');
     console.log('NATURAL-LANGUAGE PHRASE TEMPLATES:');
-    console.log('• "Between [Value A] and [Value B], which is more important to you right now, and why?"');
-    console.log('• "If you had to choose one over the other in a conflict, which would you prioritize: [Value A] or [Value B]?"');
-    console.log('• "Considering your long-term happiness, does [Value A] serve [Value B], or vice versa?"');
+    console.log('* "Between [Value A] and [Value B], which is more important to you right now, and why?"');
+    console.log('* "If you had to choose one over the other in a conflict, which would you prioritize: [Value A] or [Value B]?"');
+    console.log('* "Considering your long-term happiness, does [Value A] serve [Value B], or vice versa?"');
     console.log('');
     console.log('OBJECTIVIST-GROUNDED PROBING QUESTIONS:');
-    console.log('• "How does this choice align with life as your ultimate value?"');
-    console.log('• "Does this reflect productive achievement as your central purpose?"');
-    console.log('• "What concrete actions would this ranking lead to in your daily life?"');
+    console.log('* "How does this choice align with life as your ultimate value?"');
+    console.log('* "Does this reflect productive achievement as your central purpose?"');
+    console.log('* "What concrete actions would this ranking lead to in your daily life?"');
     console.log('');
     console.log('COMPARISON PAIRS FOR THIS SESSION:');
     pairs.forEach((pair, idx) => {
@@ -465,15 +465,15 @@ program
   .description('Displays guidelines for value specificity and Objectivist principles.')
   .action(() => {
     console.log('VALUE SPECIFICITY GUIDELINES:');
-    console.log('• Values should be actionable and personal, e.g., "Writing Tech Articles" not just "Writing".');
-    console.log('• Capture specific actions, contexts, or emotions, e.g., "Exploring Food with Wife" instead of "Family Exploration".');
-    console.log('• Align with Objectivism: Life as ultimate value, productive achievement as central purpose.');
-    console.log('• Examples: "Daily Walking and Strength Training", "Epistemology in AI Research", "Being a Family Man with Wife and Kids".');
+    console.log('* Values should be actionable and personal, e.g., "Writing Tech Articles" not just "Writing".');
+    console.log('* Capture specific actions, contexts, or emotions, e.g., "Exploring Food with Wife" instead of "Family Exploration".');
+    console.log('* Align with Objectivism: Life as ultimate value, productive achievement as central purpose.');
+    console.log('* Examples: "Daily Walking and Strength Training", "Epistemology in AI Research", "Being a Family Man with Wife and Kids".');
   });
 
 program
   .command('stats <file>')
-  .description('Shows key statistics and insights about the current hierarchy:\n• Total values\n• Total comparisons performed\n• Least-compared values\n• Strongest tag clusters\n• Value Specificity Score\n• One-sentence insight for you (the AI) to share with the human')
+  .description('Shows key statistics and insights about the current hierarchy:\n* Total values\n* Total comparisons performed\n* Least-compared values\n* Strongest tag clusters\n* Value Specificity Score\n* One-sentence insight for you (the AI) to share with the human')
   .action(async (filePath) => {
     validateFile(filePath);
     const values = await readValues(filePath);
