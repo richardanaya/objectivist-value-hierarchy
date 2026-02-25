@@ -1,6 +1,6 @@
 {
   "name": "objectivist-value-hierarchy",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "AI Assistant Tool for Conducting Objectivist Value Hierarchy Interviews with Humans",
   "main": "dist/index.js",
   "bin": {

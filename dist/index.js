@@ -55,17 +55,20 @@ program
     'RECOMMENDED AI WORKFLOW DURING A CONVERSATION\n' +
     '1. value-hierarchy init personal.values.csv\n' +
     '2. value-hierarchy add personal.values.csv "New Value" --tags "tag1|tag2" --detail\n' +
-    '3. value-hierarchy interview personal.values.csv --num 5 --personality\n' +
-    '   -> Use the generated protocol to interview the human naturally\n' +
-    '4. After the human answers, value-hierarchy update-scores personal.values.csv --responses "A>B,C>D"\n' +
-    '5. value-hierarchy top10 personal.values.csv\n' +
+    '3. value-hierarchy interview personal.values.csv --personality\n' +
+    '   -> Use the generated protocol to interview the human naturally, adding new values as they emerge\n' +
+    '4. value-hierarchy pairs personal.values.csv --num 5\n' +
+    '   -> Generate comparison pairs including new vs old and old vs old\n' +
+    '5. After the human answers, value-hierarchy update-scores personal.values.csv --responses "A>B,C>D"\n' +
+    '6. value-hierarchy top10 personal.values.csv\n' +
     '   -> Show the human their updated ranking immediately\n\n' +
     'COMMANDS\n' +
     '  init <file>                        Create a new .values.csv hierarchy file\n' +
     '  add <file> <title> [--detail]        Add a new value to the hierarchy\n' +
     '  edit <file> <id> [--title] [--tags] [--desc] Edit an existing value\n' +
     '  remove <file> <id>                  Remove a value from the hierarchy\n' +
-    '  interview <file> [--num N] [--personality] Generate full interview protocol + comparison pairs\n' +
+    '  interview <file> [--personality]    Generate full interview protocol\n' +
+    '  pairs <file> [--num N]              Generate list of comparison pairs\n' +
     '  update-scores <file> --responses     Apply Elo-like score updates from interview responses\n' +
     '  top10 <file> [--tag TAG]            Show the current Top 10 values (primary view to share with human)\n' +
     '  list <file> [--limit N] [--tag TAG] List all values sorted by importance\n' +
@@ -81,7 +84,8 @@ program
     'EXAMPLES\n' +
     '  value-hierarchy init ./personal.values.csv\n' +
     '  value-hierarchy add personal.values.csv "Daily Walking" --detail\n' +
-    '  value-hierarchy interview ~/hierarchies/career.values.csv --num 5 --personality\n' +
+    '  value-hierarchy interview ~/hierarchies/career.values.csv --personality\n' +
+    '  value-hierarchy pairs personal.values.csv --num 5\n' +
     '  value-hierarchy update-scores personal.values.csv --responses "Life>Health,Reason>Purpose"\n' +
     '  value-hierarchy top10 personal.values.csv --tag productivity\n\n' +
     'Run "value-hierarchy <command> --help" for detailed help on a command.')
@@ -235,14 +239,71 @@ program
 });
 program
     .command('interview <file>')
-    .description(`Generates a complete, ready-to-use interview protocol plus N comparison pairs for you (the AI) to use with the human.\n\nThe output contains:\n* Session header with the exact file being used\n* Full step-by-step interviewing protocol\n* Natural-language phrasing templates you can read or adapt\n* Objectivist-grounded probing questions\n* List of comparison pairs (prioritizes least-compared values first)\n\nRemember, a great interview is a mix of comparing existing values and adding new ones as they emerge in conversation. One effective technique is looking at existing values and suggesting 10 potential value options speculated on based on existing ones for the user to choose from (or obviously writing their own values). This is a fun little game that doesn't keep the conversation too slow.\n\nOPTIONS\n  --num <number>    Number of comparisons to generate (default: 5)\n  --personality      Enable sophisticated, cultured personality mode (flag)\n\nAfter the session, use "update-scores" command to apply results automatically.`)
-    .option('--num <number>', 'Number of comparisons to generate', '5')
+    .description(`Generates a complete, ready-to-use interview protocol for you (the AI) to use with the human, emphasizing adding new values first.\n\nThe output contains:\n* Session header with the exact file being used\n* Full step-by-step interviewing protocol\n* Natural-language phrasing templates you can read or adapt\n* Objectivist-grounded probing questions\n\nRemember, start with the additive part: elicit new values as they emerge in conversation. One effective technique is looking at existing values and suggesting 10 potential value options speculated on based on existing ones for the user to choose from (or obviously writing their own values). This is a fun little game that doesn't keep the conversation too slow. After adding values, use the separate "pairs" command to generate comparisons.\n\nOPTIONS\n  --personality      Enable sophisticated, cultured personality mode (flag)\n\nAfter adding values and generating pairs, use "update-scores" command to apply results automatically.`)
     .option('--personality', 'Enable sophisticated, cultured personality mode (boolean flag)')
     .action(async (filePath, options) => {
     validateFile(filePath);
     const values = await readValues(filePath);
+    const now = new Date().toISOString();
+    const personality = options.personality ? 'cultured' : 'default';
+    const protocols = {
+        default: {
+            header: '=== VALUE-HIERARCHY INTERVIEW SESSION PREPARED FOR AI AGENT ===',
+            intro: '1. Introduce the session: "Let\'s start by exploring and adding any new values that come to mind, then we\'ll compare them to refine your hierarchy."',
+            remind: '5. Remind: "Remember, this hierarchy is always revisable. Inconsistencies resolve through more comparisons."',
+            update: '6. After all pairs, run "value-hierarchy update-scores <file> --responses \'A>B,C>D\'" to update scores automatically.'
+        },
+        cultured: {
+            header: '=== DELVING DEEP INTO YOUR VALUE HIERARCHY ===',
+            intro: '1. Start the conversation: "Oh, let\'s begin by delving into any new values bubbling up in your mind, shall we? We\'ll add them first, then compare to uncover the profound layers of your priorities."',
+            remind: '5. Remind gently: "Remember, this hierarchy is yours to shape - let\'s explore until we hit bedrock."',
+            update: '6. After all pairs, run "value-hierarchy update-scores <file> --responses \'A>B,C>D\'" to apply the insights seamlessly.'
+        }
+    };
+    const proto = protocols[personality];
+    console.log(proto.header);
+    console.log(`Session File: ${filePath}`);
+    console.log(`Prepared At: ${now} (UTC)`);
+    console.log('');
+    if (personality === 'cultured') {
+        console.log('PERSONALITY MODE: SOPHISTICATED AND CULTURED');
+        console.log('');
+        console.log('This mode adopts a refined, intellectual tone, blending a hint of pretentiousness with genuine friendliness. The AI interviewer speaks with eloquence and wit, encouraging deep exploration of your values rather than superficial comparisons. It positions the conversation as an opportunity for profound self-discovery, much like a cultured mentor guiding you through layers of personal philosophy.');
+        console.log('');
+        console.log('Expect phrases that evoke sophistication and warmth, such as urging to "not skimp on the depths" or exploring "profound layers." The focus is on going deep, reminding you that your value hierarchy is malleable and worth thorough examination. This creates an engaging dialogue where comparisons become springboards for richer insights, aligned with Objectivist principles of life as the ultimate value and productive achievement as the central purpose.');
+        console.log('');
+        console.log('Ultimately, this personality turns the interview into a memorable, insightful experience. It balances snooty charm with approachable depth, fostering intellectual camaraderie. By delving into the "bedrock" of your priorities, it helps build not just a ranked list, but a deeply reflective understanding of what drives you, leading to more concrete actions in daily life.');
+        console.log('');
+    }
+    console.log('STEP-BY-STEP INTERVIEWING PROTOCOL:');
+    console.log(proto.intro);
+    console.log('2. Elicit new values: Use open-ended questions and the "add" command to capture emerging values as they come up in conversation.');
+    console.log('3. After adding values, generate pairs using "value-hierarchy pairs <file> --num 5" and proceed with comparisons.');
+    console.log('4. For each pair, use the friendly phrasing templates below, swapping in the value titles.');
+    console.log('5. After each comparison, jot down the human\'s pick and why.');
+    console.log(proto.remind);
+    console.log(proto.update);
+    console.log('');
+    console.log('NATURAL-LANGUAGE PHRASE TEMPLATES:');
+    console.log('* "Between [Value A] and [Value B], which is more important to you right now, and why?"');
+    console.log('* "If you had to choose one over the other in a conflict, which would you prioritize: [Value A] or [Value B]?"');
+    console.log('* "Considering your long-term happiness, does [Value A] serve [Value B], or vice versa?"');
+    console.log('');
+    console.log('OBJECTIVIST-GROUNDED PROBING QUESTIONS:');
+    console.log('* "How does this choice align with life as your ultimate value?"');
+    console.log('* "Does this reflect productive achievement as your central purpose?"');
+    console.log('* "What concrete actions would this ranking lead to in your daily life?"');
+    console.log('');
+});
+program
+    .command('pairs <file>')
+    .description('Generates a list of N comparison pairs for the specified .values.csv file.\nPrioritizes least-compared values first. Use this after the additive part of the interview to get fresh comparisons including new values.\n\nOPTIONS\n  --num <number>    Number of comparisons to generate (default: 5)')
+    .option('--num <number>', 'Number of comparisons to generate', '5')
+    .action(async (filePath, options) => {
+    validateFile(filePath);
+    const values = await readValues(filePath);
     if (values.length < 2) {
-        console.error('Error: Need at least 2 values for interview. Add more values first.');
+        console.error('Error: Need at least 2 values for pairs. Add more values first.');
         process.exit(1);
     }
     const num = parseInt(options.num);
@@ -269,55 +330,7 @@ program
     for (let i = 0; i < Math.min(num * 2, candidates.length - 1); i += 2) {
         pairs.push([candidates[i], candidates[i + 1]]);
     }
-    const now = new Date().toISOString();
-    const personality = options.personality ? 'cultured' : 'default';
-    const protocols = {
-        default: {
-            header: '=== VALUE-HIERARCHY INTERVIEW SESSION PREPARED FOR AI AGENT ===',
-            intro: '1. Introduce the session: "I\'m going to ask you to compare some of your values to help refine your hierarchy."',
-            remind: '4. Remind: "Remember, this hierarchy is always revisable. Inconsistencies resolve through more comparisons."',
-            update: '5. After all pairs, run "value-hierarchy update-scores <file> --responses \'A>B,C>D\'" to update scores automatically.'
-        },
-        cultured: {
-            header: '=== DELVING DEEP INTO YOUR VALUE HIERARCHY ===',
-            intro: '1. Start the conversation: "Oh, let\'s not skimp on the depths here, shall we? Comparing these values will help us uncover the profound layers of your priorities."',
-            remind: '4. Remind gently: "Remember, this hierarchy is yours to shape - let\'s explore until we hit bedrock."',
-            update: '5. After all pairs, run "value-hierarchy update-scores <file> --responses \'A>B,C>D\'" to apply the insights seamlessly.'
-        }
-    };
-    const proto = protocols[personality];
-    console.log(proto.header);
-    console.log(`Session File: ${filePath}`);
-    console.log(`Prepared At: ${now} (UTC)`);
-    console.log('');
-    if (personality === 'cultured') {
-        console.log('PERSONALITY MODE: SOPHISTICATED AND CULTURED');
-        console.log('');
-        console.log('This mode adopts a refined, intellectual tone, blending a hint of pretentiousness with genuine friendliness. The AI interviewer speaks with eloquence and wit, encouraging deep exploration of your values rather than superficial comparisons. It positions the conversation as an opportunity for profound self-discovery, much like a cultured mentor guiding you through layers of personal philosophy.');
-        console.log('');
-        console.log('Expect phrases that evoke sophistication and warmth, such as urging to "not skimp on the depths" or exploring "profound layers." The focus is on going deep, reminding you that your value hierarchy is malleable and worth thorough examination. This creates an engaging dialogue where comparisons become springboards for richer insights, aligned with Objectivist principles of life as the ultimate value and productive achievement as the central purpose.');
-        console.log('');
-        console.log('Ultimately, this personality turns the interview into a memorable, insightful experience. It balances snooty charm with approachable depth, fostering intellectual camaraderie. By delving into the "bedrock" of your priorities, it helps build not just a ranked list, but a deeply reflective understanding of what drives you, leading to more concrete actions in daily life.');
-        console.log('');
-    }
-    console.log('STEP-BY-STEP INTERVIEWING PROTOCOL:');
-    console.log(proto.intro);
-    console.log('2. For each pair, use the friendly phrasing templates below, swapping in the value titles.');
-    console.log('3. After each comparison, jot down the human\'s pick and why.');
-    console.log(proto.remind);
-    console.log(proto.update);
-    console.log('');
-    console.log('NATURAL-LANGUAGE PHRASE TEMPLATES:');
-    console.log('* "Between [Value A] and [Value B], which is more important to you right now, and why?"');
-    console.log('* "If you had to choose one over the other in a conflict, which would you prioritize: [Value A] or [Value B]?"');
-    console.log('* "Considering your long-term happiness, does [Value A] serve [Value B], or vice versa?"');
-    console.log('');
-    console.log('OBJECTIVIST-GROUNDED PROBING QUESTIONS:');
-    console.log('* "How does this choice align with life as your ultimate value?"');
-    console.log('* "Does this reflect productive achievement as your central purpose?"');
-    console.log('* "What concrete actions would this ranking lead to in your daily life?"');
-    console.log('');
-    console.log('COMPARISON PAIRS FOR THIS SESSION:');
+    console.log(`COMPARISON PAIRS FOR ${filePath}:`);
     pairs.forEach((pair, idx) => {
         console.log(`${idx + 1}. ${pair[0].title} vs ${pair[1].title}`);
     });

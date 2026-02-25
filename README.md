@@ -22,29 +22,41 @@ npm install -g objectivist-value-hierarchy
 ## Recommended AI Workflow During a Conversation
 
 1. `value-hierarchy init personal.values.csv`
-2. `value-hierarchy add personal.values.csv "New Value" --tags "tag1|tag2"`
-3. `value-hierarchy interview personal.values.csv --num 5`
-   → Use the generated protocol to interview the human naturally
-4. After the human answers, manually edit the .values.csv file to update scores and comparisonCount
-5. `value-hierarchy top10 personal.values.csv`
+2. `value-hierarchy add personal.values.csv "New Value" --tags "tag1|tag2" --detail`
+3. `value-hierarchy interview personal.values.csv --personality`
+   → Use the generated protocol to interview the human naturally, adding new values as they emerge
+4. `value-hierarchy pairs personal.values.csv --num 5`
+   → Generate comparison pairs including new vs old and old vs old
+5. After the human answers, `value-hierarchy update-scores personal.values.csv --responses "A>B,C>D"`
+6. `value-hierarchy top10 personal.values.csv`
    → Show the human their updated ranking immediately
 
 ## Commands
 
 - `init <file>`: Create a new .values.csv hierarchy file
-- `add <file> <title>`: Add a new value to the hierarchy
-- `interview <file> [--num N]`: Generate full interview protocol + comparison pairs
+- `add <file> <title> [--detail]`: Add a new value to the hierarchy
+- `edit <file> <id> [--title] [--tags] [--desc]`: Edit an existing value
+- `remove <file> <id>`: Remove a value from the hierarchy
+- `interview <file> [--personality]`: Generate full interview protocol
+- `pairs <file> [--num N]`: Generate list of comparison pairs
+- `update-scores <file> --responses`: Apply Elo-like score updates from interview responses
 - `top10 <file> [--tag TAG]`: Show the current Top 10 values (primary view to share with human)
 - `list <file> [--limit N] [--tag TAG]`: List all values sorted by importance
 - `hierarchy <file>`: Show full hierarchy grouped by tags
+- `validate <file>`: Check file integrity and suggest improvements
 - `stats <file>`: Show statistics and insights
+- `guide`: Show value specificity guidelines
+- `feedback <message>`: Log feedback for improvements
 - `tags`: Show master tag list from objectivist-lattice
 
 ## Examples
 
 ```bash
 value-hierarchy init ./personal.values.csv
-value-hierarchy interview ~/hierarchies/career.values.csv --num 5
+value-hierarchy add personal.values.csv "Daily Walking" --detail
+value-hierarchy interview ~/hierarchies/career.values.csv --personality
+value-hierarchy pairs personal.values.csv --num 5
+value-hierarchy update-scores personal.values.csv --responses "Life>Health,Reason>Purpose"
 value-hierarchy top10 personal.values.csv --tag productivity
 ```
 
