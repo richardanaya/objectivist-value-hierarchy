@@ -1,4 +1,4 @@
 id,title,score,comparisonCount,tags,createdAt,updatedAt,rationale
 ,,NaN,NaN,,,,
-20260224215151-test-value,Test Value,1500,0,,2026-02-25T05:51:51.293Z,2026-02-25T05:51:51.293Z,
+20260224215151-test-value,Test Value,1500,0,,2026-02-25T05:51:51.293Z,2026-02-25T05:58:12.103Z,This is a test rationale for why this value is important.
 20260224215152-another-value,Another Value,1500,0,,2026-02-25T05:51:52.030Z,2026-02-25T05:51:52.030Z,

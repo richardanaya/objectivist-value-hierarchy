@@ -66,6 +66,7 @@ program
     '  init <file>                        Create a new .values.csv hierarchy file\n' +
     '  add <file> <title> [--detail]        Add a new value to the hierarchy\n' +
     '  edit <file> <id> [--title] [--tags] [--desc] Edit an existing value\n' +
+    '  rationale <file> <id> [--update]    Display or update the rationale for a value\n' +
     '  remove <file> <id>                  Remove a value from the hierarchy\n' +
     '  interview <file> [--personality]    Generate full interview protocol\n' +
     '  pairs <file> [--num N]              Generate list of comparison pairs\n' +
@@ -89,7 +90,7 @@ program
     '  value-hierarchy update-scores personal.values.csv --responses "Life>Health,Reason>Purpose"\n' +
     '  value-hierarchy top10 personal.values.csv --tag productivity\n\n' +
     'Run "value-hierarchy <command> --help" for detailed help on a command.')
-    .version('0.0.4');
+    .version('0.0.6');
 const fallbackTags = [
     'life', 'reason', 'purpose', 'self-esteem', 'productive-achievement',
     'ethics', 'politics', 'epistemology', 'metaphysics',
@@ -223,6 +224,31 @@ program
     console.log(`Edited value "${id}" in ${filePath}`);
 });
 program
+    .command('rationale <file> <id>')
+    .description('Displays or updates the rationale for a specific value. Useful for refining why a value is important after interviews.')
+    .option('--show', 'Only show the current rationale (default behavior)')
+    .option('--update <string>', 'Update the rationale to this new string')
+    .action(async (filePath, id, options) => {
+    validateFile(filePath);
+    const values = await readValues(filePath);
+    const value = values.find(v => v.id === id);
+    if (!value) {
+        console.error(`Error: Value with id "${id}" not found.`);
+        process.exit(1);
+    }
+    if (options.update) {
+        const now = new Date().toISOString();
+        value.rationale = options.update;
+        value.updatedAt = now;
+        await writeValues(filePath, values);
+        console.log(`Updated rationale for "${value.title}" in ${filePath}`);
+    }
+    else {
+        console.log(`Rationale for "${value.title}" (${id}):`);
+        console.log(value.rationale || '(No rationale provided yet)');
+    }
+});
+program
     .command('remove <file> <id>')
     .description('Removes a value from the specified .values.csv file.')
     .action(async (filePath, id) => {
@@ -239,7 +265,7 @@ program
 });
 program
     .command('interview <file>')
-    .description(`Generates a complete, ready-to-use interview protocol for you (the AI) to use with the human, emphasizing adding new values first.\n\nThe output contains:\n* Session header with the exact file being used\n* Full step-by-step interviewing protocol\n* Natural-language phrasing templates you can read or adapt\n* Objectivist-grounded probing questions\n\nRemember, start with the additive part: elicit new values as they emerge in conversation. One effective technique is looking at existing values and suggesting 10 potential value options speculated on based on existing ones for the user to choose from (or obviously writing their own values). This is a fun little game that doesn't keep the conversation too slow. After adding values, use the separate "pairs" command to generate comparisons.\n\nOPTIONS\n  --personality      Enable sophisticated, cultured personality mode (flag)\n\nAfter adding values and generating pairs, use "update-scores" command to apply results automatically.`)
+    .description(`Generates a complete, ready-to-use interview protocol for you (the AI) to use with the human, emphasizing adding new values first and refining rationales.\n\nThe output contains:\n* Session header with the exact file being used\n* Full step-by-step interviewing protocol\n* Natural-language phrasing templates you can read or adapt\n* Objectivist-grounded probing questions\n\nRemember, start with the additive part: elicit new values as they emerge in conversation, and for each, probe deeply for their rationale (why this value is important). One effective technique is looking at existing values and suggesting 10 potential value options speculated on based on existing ones for the user to choose from (or obviously writing their own values). This is a fun little game that doesn't keep the conversation too slow. After adding values with rich rationales, use the separate "pairs" command to generate comparisons.\n\nThroughout the interview, emphasize improving rationales: After comparisons, ask "Why did you choose A over B?" and update the rationale accordingly using "edit" command.\n\nOPTIONS\n  --personality      Enable sophisticated, cultured personality mode (flag)\n\nAfter adding values and generating pairs, use "update-scores" command to apply results automatically.`)
     .option('--personality', 'Enable sophisticated, cultured personality mode (boolean flag)')
     .action(async (filePath, options) => {
     validateFile(filePath);
@@ -280,7 +306,9 @@ program
     console.log('2. Elicit new values: Use open-ended questions and the "add" command to capture emerging values as they come up in conversation.');
     console.log('3. After adding values, generate pairs using "value-hierarchy pairs <file> --num 5" and proceed with comparisons.');
     console.log('4. For each pair, use the friendly phrasing templates below, swapping in the value titles.');
-    console.log('5. After each comparison, jot down the human\'s pick and why.');
+    console.log('5. After each comparison, jot down the human\'s pick and why (this often reveals deeper rationale).');
+    console.log('   # If you learned something new about why a value is important, update its rationale:');
+    console.log('   # value-hierarchy rationale <file> <id> --update "Refined rationale based on interview"');
     console.log(proto.remind);
     console.log(proto.update);
     console.log('');
