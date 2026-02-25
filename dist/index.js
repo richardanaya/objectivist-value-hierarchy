@@ -48,6 +48,8 @@ const program = new commander_1.Command();
 program
     .name('value-hierarchy')
     .description('AI Assistant Tool for Conducting Objectivist Value Hierarchy Interviews with Humans\n\n' +
+    'WARNING: ALWAYS READ THE CURRENT RATIONALE FOR A VALUE BEFORE UPDATING IT.\n' +
+    'This prevents accidental loss of valuable insights accumulated during interviews.\n\n' +
     'PURPOSE\n' +
     'This CLI exists solely for use by an AI assistant during live conversations with a human.  \n' +
     'It helps the AI systematically elicit, refine, and maintain the human\'s personal Objectivist value hierarchy (life as the ultimate standard of value, productive achievement as the central integrating purpose).\n\n' +
@@ -90,7 +92,7 @@ program
     '  value-hierarchy update-scores personal.csv --responses "Life>Health,Reason>Purpose"\n' +
     '  value-hierarchy top10 personal.csv --tag productivity\n\n' +
     'Run "value-hierarchy <command> --help" for detailed help on a command.')
-    .version('0.0.6');
+    .version('0.0.8');
 const fallbackTags = [
     'life', 'reason', 'purpose', 'self-esteem', 'productive-achievement',
     'ethics', 'politics', 'epistemology', 'metaphysics',
@@ -216,7 +218,7 @@ program
 });
 program
     .command('rationale <file> <id>')
-    .description('Displays or updates the rationale for a specific value. Useful for refining why a value is important after interviews.')
+    .description('Displays or updates the rationale for a specific value. Useful for refining why a value is important after interviews.\n\nWARNING: ALWAYS READ THE CURRENT RATIONALE BEFORE UPDATING IT.\nThis preserves existing insights and prevents accidental loss.')
     .option('--show', 'Only show the current rationale (default behavior)')
     .option('--update <string>', 'Update the rationale to this new string')
     .action(async (filePath, id, options) => {
@@ -254,7 +256,7 @@ program
 });
 program
     .command('interview <file>')
-    .description(`Generates a complete, ready-to-use interview protocol for you (the AI) to use with the human, emphasizing adding new values first and refining rationales.\n\nThe output contains:\n* Session header with the exact file being used\n* Full step-by-step interviewing protocol\n* Natural-language phrasing templates you can read or adapt\n* Objectivist-grounded probing questions\n\nRemember, start with the additive part: elicit new values as they emerge in conversation, and for each, probe deeply for their rationale (why this value is important). One effective technique is to generate 10 new potential values based on the existing hierarchy and suggest them to the user for selection (or they can propose their own). This is a fun little game that doesn't keep the conversation too slow. After adding values with rich rationales, use the separate "pairs" command to generate comparisons.\n\nThroughout the interview, emphasize improving rationales: After comparisons, ask "Why did you choose A over B?" and update the rationale accordingly using "edit" command.\n\nOPTIONS\n  --personality      Enable sophisticated, cultured personality mode (flag)\n\nAfter adding values and generating pairs, use "update-scores" command to apply results automatically.`)
+    .description(`Generates a complete, ready-to-use interview protocol for you (the AI) to use with the human, emphasizing adding new values first and refining rationales.\n\nWARNING: ALWAYS READ THE CURRENT RATIONALE FOR A VALUE BEFORE UPDATING IT.\nThis prevents accidental loss of valuable insights accumulated during interviews.\n\nThe output contains:\n* Session header with the exact file being used\n* Full step-by-step interviewing protocol\n* Natural-language phrasing templates you can read or adapt\n* Objectivist-grounded probing questions\n\nRemember, start with the additive part: elicit new values as they emerge in conversation, and for each, probe deeply for their rationale (why this value is important). One effective technique is to generate 10 new potential values based on the existing hierarchy and suggest them to the user for selection (or they can propose their own). This is a fun little game that doesn't keep the conversation too slow. After adding values with rich rationales, use the separate "pairs" command to generate comparisons.\n\nThroughout the interview, emphasize improving rationales: After comparisons, ask "Why did you choose A over B?" and update the rationale accordingly using "edit" command.\n\nOPTIONS\n  --personality      Enable sophisticated, cultured personality mode (flag)\n\nAfter adding values and generating pairs, use "update-scores" command to apply results automatically.`)
     .option('--personality', 'Enable sophisticated, cultured personality mode (boolean flag)')
     .action(async (filePath, options) => {
     const values = await readValues(filePath);
