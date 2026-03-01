@@ -17,9 +17,9 @@ program
     '  suggestions-to-improve [file]       Get improvement suggestions\n' +
     '  set-higher-priority-than [file] <value> <value-to-be-above>  Reorder values\n' +
     '  list [file]                         List values in priority order\n' +
-    '  tags                                Show available tags'
+    '  tags [file]                        Show available tags (master list + from values)'
   )
-  .version('0.1.0');
+  .version('0.1.1');
 
 interface Value {
   id: string;
@@ -32,10 +32,22 @@ interface Value {
 }
 
 const fallbackTags = [
-  'life', 'reason', 'purpose', 'self-esteem', 'productive-achievement',
-  'ethics', 'politics', 'epistemology', 'metaphysics',
-  'productivity', 'goals', 'career', 'health', 'relationships', 'creativity',
-  'habits', 'learning', 'philosophy', 'principles', 'rationality', 'happiness'
+  // Core life areas (practical)
+  'health', 'fitness', 'mental-health', 'sleep', 'nutrition',
+  'career', 'work', 'skills', 'learning', 'education',
+  'finance', 'money', 'investing', 'savings', 'budget',
+  'relationships', 'family', 'friends', 'romance', 'community',
+  'home', 'housing', 'environment', 'organization', 'cleanliness',
+  
+  // Personal development
+  'creativity', 'hobbies', 'arts', 'music', 'writing',
+  'goals', 'planning', 'habits', 'discipline', 'focus',
+  'self-improvement', 'confidence', 'mindfulness', 'reflection',
+  
+  // Experiences & enjoyment
+  'travel', 'adventure', 'experiences', 'fun', 'entertainment',
+  'food', 'cooking', 'dining',
+  'nature', 'outdoors', 'sports', 'recreation'
 ];
 
 function loadTags(): string[] {
@@ -587,15 +599,35 @@ program
   });
 
 program
-  .command('tags')
-  .description('Show available tags')
-  .action(() => {
-    const tags = loadTags();
+  .command('tags [file]')
+  .description('Show available tags (master list + tags from values)')
+  .action(async (filePath) => {
+    // Get master tags (from objectivist-lattice or fallback)
+    const masterTags = loadTags();
+    
+    // Get tags from values if file provided
+    let valueTags: string[] = [];
+    
+    if (filePath) {
+      const actualPath = filePath || 'value-hierarchy.md';
+      if (await fs.pathExists(actualPath)) {
+        const values = await readValues(actualPath);
+        const tagSet = new Set<string>();
+        values.forEach(v => {
+          v.tags.split('|').forEach(tag => {
+            if (tag.trim()) tagSet.add(tag.trim());
+          });
+        });
+        valueTags = Array.from(tagSet);
+      }
+    }
+    
+    // Combine, deduplicate, and sort
+    const allTags = Array.from(new Set([...masterTags, ...valueTags])).sort();
+    
     const data = {
-      type: 'master-tags',
-      source: 'objectivist-lattice or fallback',
-      timestamp: new Date().toISOString(),
-      tags
+      type: 'tags',
+      tags: allTags
     };
     console.log(toon.encode(data));
   });

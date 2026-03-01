@@ -33,71 +33,39 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const commander_1 = require("commander");
 const fs = __importStar(require("fs-extra"));
 const path = __importStar(require("path"));
-const csv_parser_1 = __importDefault(require("csv-parser"));
-const csv_writer_1 = require("csv-writer");
-const slugify_1 = __importDefault(require("slugify"));
 const toon = __importStar(require("@toon-format/toon"));
 const program = new commander_1.Command();
 program
-    .name('value-hierarchy')
-    .description('AI Assistant Tool for Conducting Objectivist Value Hierarchy Interviews with Humans\n\n' +
-    'WARNING: ALWAYS READ THE CURRENT RATIONALE FOR A VALUE BEFORE UPDATING IT.\n' +
-    'This prevents accidental loss of valuable insights accumulated during interviews.\n\n' +
-    'PURPOSE\n' +
-    'This CLI exists solely for use by an AI assistant during live conversations with a human.  \n' +
-    'It helps the AI systematically elicit, refine, and maintain the human\'s personal Objectivist value hierarchy (life as the ultimate standard of value, productive achievement as the central integrating purpose).\n\n' +
-    'Each hierarchy lives in its own single, portable CSV file.\n\n' +
-    'RECOMMENDED AI WORKFLOW DURING A CONVERSATION\n' +
-    '1. value-hierarchy init personal.csv\n' +
-    '2. value-hierarchy add personal.csv "New Value" --tags "tag1|tag2" --detail\n' +
-    '3. value-hierarchy interview personal.csv --personality\n' +
-    '   -> Use the generated protocol to interview the human naturally, adding new values as they emerge\n' +
-    '4. value-hierarchy pairs personal.csv --num 5\n' +
-    '   -> Generate comparison pairs including new vs old and old vs old\n' +
-    '5. After the human answers, value-hierarchy update-scores personal.csv --responses "A>B,C>D"\n' +
-    '6. value-hierarchy top10 personal.csv\n' +
-    '   -> Show the human their updated ranking immediately\n\n' +
+    .name('vh')
+    .description('Manage a personal value hierarchy in Markdown files.\n\n' +
     'COMMANDS\n' +
-    '  init <file>                        Create a new CSV hierarchy file\n' +
-    '  add <file> <title> [--detail]        Add a new value to the hierarchy\n' +
-    '  edit <file> <id> [--title] [--tags] [--desc] Edit an existing value\n' +
-    '  rationale <file> <id> [--update]    Display or update the rationale for a value\n' +
-    '  remove <file> <id>                  Remove a value from the hierarchy\n' +
-    '  interview <file> [--personality]    Generate full interview protocol\n' +
-    '  pairs <file> [--num N]              Generate list of comparison pairs\n' +
-    '  update-scores <file> --responses     Apply fixed-point score updates from interview responses\n' +
-    '  top10 <file> [--tag TAG]            Show the current Top 10 values (primary view to share with human)\n' +
-    '  list <file> [--limit N] [--tag TAG] List all values sorted by importance\n' +
-    '  hierarchy <file>                    Show full hierarchy grouped by tags\n' +
-    '  validate <file>                     Check file integrity and suggest improvements\n' +
-    '  stats <file>                        Show statistics and insights\n' +
-    '  guide                               Show value specificity guidelines\n' +
-    '  feedback <message>                  Log feedback for improvements\n' +
-    '  tags                                Show master tag list from objectivist-lattice\n\n' +
-    'OPTIONS\n' +
-    '  -h, --help        display help for command\n' +
-    '  -v, --version     output the version number\n\n' +
-    'EXAMPLES\n' +
-    '  value-hierarchy init ./personal.csv\n' +
-    '  value-hierarchy add personal.csv "Daily Walking" --detail\n' +
-    '  value-hierarchy interview ~/hierarchies/career.csv --personality\n' +
-    '  value-hierarchy pairs personal.csv --num 5\n' +
-    '  value-hierarchy update-scores personal.csv --responses "Life>Health,Reason>Purpose"\n' +
-    '  value-hierarchy top10 personal.csv --tag productivity\n\n' +
-    'Run "value-hierarchy <command> --help" for detailed help on a command.')
-    .version('0.0.8');
+    '  add [file] <title>                 Add a value\n' +
+    '  edit [file] <id>                   Edit a value\n' +
+    '  remove [file] <id>                  Remove a value\n' +
+    '  suggestions-to-improve [file]       Get improvement suggestions\n' +
+    '  set-higher-priority-than [file] <value> <value-to-be-above>  Reorder values\n' +
+    '  list [file]                         List values in priority order\n' +
+    '  tags [file]                        Show available tags (master list + from values)')
+    .version('0.1.1');
 const fallbackTags = [
-    'life', 'reason', 'purpose', 'self-esteem', 'productive-achievement',
-    'ethics', 'politics', 'epistemology', 'metaphysics',
-    'productivity', 'goals', 'career', 'health', 'relationships', 'creativity',
-    'habits', 'learning', 'philosophy', 'principles', 'rationality', 'happiness'
+    // Core life areas (practical)
+    'health', 'fitness', 'mental-health', 'sleep', 'nutrition',
+    'career', 'work', 'skills', 'learning', 'education',
+    'finance', 'money', 'investing', 'savings', 'budget',
+    'relationships', 'family', 'friends', 'romance', 'community',
+    'home', 'housing', 'environment', 'organization', 'cleanliness',
+    // Personal development
+    'creativity', 'hobbies', 'arts', 'music', 'writing',
+    'goals', 'planning', 'habits', 'discipline', 'focus',
+    'self-improvement', 'confidence', 'mindfulness', 'reflection',
+    // Experiences & enjoyment
+    'travel', 'adventure', 'experiences', 'fun', 'entertainment',
+    'food', 'cooking', 'dining',
+    'nature', 'outdoors', 'sports', 'recreation'
 ];
 function loadTags() {
     // Try to load from objectivist-lattice repo
@@ -111,7 +79,7 @@ function loadTags() {
 }
 async function requireFile(filePath) {
     if (!await fs.pathExists(filePath)) {
-        console.error(`Error: File "${filePath}" does not exist. Run "value-hierarchy init ${filePath}" first.`);
+        console.error(`Error: File "${filePath}" does not exist.`);
         process.exit(1);
     }
 }
@@ -120,66 +88,139 @@ async function readValues(filePath) {
     if (!await fs.pathExists(filePath)) {
         return values;
     }
-    const stream = fs.createReadStream(filePath).pipe((0, csv_parser_1.default)());
-    for await (const row of stream) {
-        values.push({
-            id: row.id,
-            title: row.title,
-            score: parseFloat(row.score),
-            comparisonCount: parseInt(row.comparisonCount),
-            tags: row.tags,
-            createdAt: row.createdAt,
-            updatedAt: row.updatedAt,
-            rationale: row.rationale
-        });
+    const content = await fs.readFile(filePath, 'utf8');
+    const lines = content.split('\n');
+    let currentValue = null;
+    let inRationale = false;
+    let rationaleLines = [];
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        // Check for value header (### value-id)
+        const valueMatch = line.match(/^### (.+)$/);
+        if (valueMatch) {
+            // Save previous value if exists
+            if (currentValue && currentValue.id) {
+                if (inRationale && rationaleLines.length > 0) {
+                    currentValue.rationale = rationaleLines.join('\n').trim();
+                }
+                values.push(currentValue);
+            }
+            // Start new value - id and title are the same
+            const title = valueMatch[1];
+            currentValue = {
+                id: title,
+                title: title,
+                wins: 0,
+                losses: 0,
+                tags: '',
+                updatedAt: new Date().toISOString(),
+                rationale: ''
+            };
+            inRationale = false;
+            rationaleLines = [];
+            continue;
+        }
+        if (!currentValue)
+            continue;
+        // Parse rationale header
+        if (line.trim() === '#### Rationale') {
+            inRationale = true;
+            rationaleLines = [];
+            continue;
+        }
+        // Parse table rows
+        const tableMatch = line.match(/^\| (Wins|Losses|Tags|Updated) \| (.+) \|$/);
+        if (tableMatch) {
+            const key = tableMatch[1];
+            const value = tableMatch[2].trim();
+            switch (key) {
+                case 'Wins':
+                    currentValue.wins = parseInt(value);
+                    break;
+                case 'Losses':
+                    currentValue.losses = parseInt(value);
+                    break;
+                case 'Tags':
+                    currentValue.tags = value === '(none)' ? '' : value;
+                    break;
+                case 'Updated':
+                    currentValue.updatedAt = value;
+                    break;
+            }
+            continue;
+        }
+        // Collect rationale lines
+        if (inRationale) {
+            // Stop collecting when we hit a table row or other structured content
+            if (line.match(/^\| /) || line.match(/^#### /) || line.match(/^\*\*/)) {
+                inRationale = false;
+            }
+            else if (line.trim() !== '' || rationaleLines.length > 0) {
+                rationaleLines.push(line);
+            }
+        }
+    }
+    // Save last value if exists
+    if (currentValue && currentValue.id) {
+        if (inRationale && rationaleLines.length > 0) {
+            currentValue.rationale = rationaleLines.join('\n').trim();
+        }
+        values.push(currentValue);
     }
     return values;
 }
 async function writeValues(filePath, values) {
-    const csvWriter = (0, csv_writer_1.createObjectCsvWriter)({
-        path: filePath,
-        header: [
-            { id: 'id', title: 'id' },
-            { id: 'title', title: 'title' },
-            { id: 'score', title: 'score' },
-            { id: 'comparisonCount', title: 'comparisonCount' },
-            { id: 'tags', title: 'tags' },
-            { id: 'createdAt', title: 'createdAt' },
-            { id: 'updatedAt', title: 'updatedAt' },
-            { id: 'rationale', title: 'rationale' }
-        ]
-    });
-    await csvWriter.writeRecords(values);
+    const totalComparisons = values.reduce((sum, v) => sum + v.wins + v.losses, 0);
+    const lastUpdated = values.length > 0
+        ? values.reduce((latest, v) => v.updatedAt > latest ? v.updatedAt : latest, values[0].updatedAt)
+        : new Date().toISOString();
+    let markdown = `# Value Hierarchy\n\n`;
+    markdown += `## Summary\n`;
+    markdown += `- **Total Values**: ${values.length}\n`;
+    markdown += `- **Total Comparisons**: ${totalComparisons}\n`;
+    markdown += `- **Last Updated**: ${lastUpdated}\n\n`;
+    if (values.length === 0) {
+        markdown += `*No values added yet.*\n`;
+    }
+    else {
+        markdown += `## Values\n\n`;
+        // Values are already in priority order (file order = priority)
+        for (const v of values) {
+            markdown += `### ${v.title}\n\n`;
+            markdown += `| Attribute | Value |\n`;
+            markdown += `|-----------|-------|\n`;
+            markdown += `| Wins | ${v.wins} |\n`;
+            markdown += `| Losses | ${v.losses} |\n`;
+            markdown += `| Tags | ${v.tags || '(none)'} |\n`;
+            markdown += `| Updated | ${v.updatedAt} |\n\n`;
+            markdown += `#### Rationale\n`;
+            if (v.rationale && v.rationale.trim()) {
+                markdown += `${v.rationale}\n`;
+            }
+            else {
+                markdown += `*(No rationale provided yet)*\n`;
+            }
+            markdown += `\n`;
+        }
+    }
+    await fs.writeFile(filePath, markdown);
 }
 function generateId(title) {
-    const now = new Date();
-    const timestamp = now.getFullYear().toString() +
-        (now.getMonth() + 1).toString().padStart(2, '0') +
-        now.getDate().toString().padStart(2, '0') +
-        now.getHours().toString().padStart(2, '0') +
-        now.getMinutes().toString().padStart(2, '0') +
-        now.getSeconds().toString().padStart(2, '0');
-    const slug = (0, slugify_1.default)(title, { lower: true, strict: true });
-    return `${timestamp}-${slug}`;
+    return title;
 }
 program
-    .command('init <file>')
-    .description('Creates a new CSV file at the exact path you specify (creates parent directories if needed).\nUse this once per new hierarchy you are helping a human build.\n\nRECOMMENDED PATH CONVENTIONS:\n  ./personal.csv                     Relative to current working directory\n  ~/value-hierarchies/personal.csv   For persistence across sessions\n  ~/value-hierarchies/career.csv     Separate file per life domain\n\nThe file path is not stored anywhere else -- you (the AI) must remember it\nor ask the human for it at the start of each session.\n\nNOTE: All other commands (add, edit, pairs, etc.) require the file to exist.\nAlways run "init" first before using any other command on a new file.')
-    .action(async (filePath, options) => {
-    await fs.ensureDir(path.dirname(filePath));
-    let values = [];
-    await writeValues(filePath, values);
-    console.log(`Created ${filePath}`);
-});
-program
-    .command('add <file> <title>')
-    .description('Appends a new value to the specified CSV file.\nPerfect when the human names a new value during conversation.')
-    .option('--tags <string>', 'Pipe-separated tags (e.g. "productivity|learning|habits")')
-    .option('--desc <string>', 'Optional initial rationale/description')
-    .option('--detail', 'If set and title has fewer than 3 words, the value is NOT added. Instead a specificity warning is printed and the AI should rephrase with the human before retrying without --detail.')
+    .command('add [file] <title>')
+    .description('Add a value')
+    .option('--tags <string>', 'Pipe-separated tags')
+    .option('--desc <string>', 'Description')
+    .option('--detail', 'Require specific title (3+ words)')
     .action(async (filePath, title, options) => {
-    await requireFile(filePath);
-    const values = await readValues(filePath);
+    const actualPath = filePath || 'value-hierarchy.md';
+    // Auto-create directory if file doesn't exist
+    if (!await fs.pathExists(actualPath)) {
+        await fs.ensureDir(path.dirname(actualPath));
+    }
+    const values = await readValues(actualPath);
     // Check for detail if --detail is used and title seems broad
     if (options.detail && title.split(' ').length < 3) {
         console.log(`NOT ADDED: "${title}" seems too broad (fewer than 3 words). Consider making it more specific, e.g., "Daily Walking and Strength Training" instead of "Physical Fitness". Rephrase with the human and retry without --detail.`);
@@ -189,26 +230,26 @@ program
     const newValue = {
         id: generateId(title),
         title,
-        score: 1500,
-        comparisonCount: 0,
+        wins: 0,
+        losses: 0,
         tags: options.tags || '',
-        createdAt: now,
         updatedAt: now,
         rationale: options.desc || ''
     };
     values.push(newValue);
-    await writeValues(filePath, values);
-    console.log(`Added "${title}" to ${filePath}`);
+    await writeValues(actualPath, values);
+    console.log(`Added "${title}" to ${actualPath}`);
 });
 program
-    .command('edit <file> <id>')
-    .description('Edits an existing value in the specified CSV file.\nUse "edit" for quick metadata changes (title, tags, and/or rationale in one call).\nFor focused rationale refinement with a read-before-write pattern, prefer the "rationale" command instead.\n\nRequires the value ID. Use "list" or "top10" to find IDs for values.')
-    .option('--title <string>', 'New title for the value')
-    .option('--tags <string>', 'New pipe-separated tags')
-    .option('--desc <string>', 'New rationale/description')
+    .command('edit [file] <id>')
+    .description('Edit a value')
+    .option('--title <string>', 'New title')
+    .option('--tags <string>', 'New tags')
+    .option('--desc <string>', 'New description')
     .action(async (filePath, id, options) => {
-    await requireFile(filePath);
-    const values = await readValues(filePath);
+    const actualPath = filePath || 'value-hierarchy.md';
+    await requireFile(actualPath);
+    const values = await readValues(actualPath);
     const value = values.find(v => v.id === id);
     if (!value) {
         console.error(`Error: Value with id "${id}" not found.`);
@@ -222,252 +263,280 @@ program
     if (options.desc)
         value.rationale = options.desc;
     value.updatedAt = now;
-    await writeValues(filePath, values);
-    console.log(`Edited value "${id}" in ${filePath}`);
+    await writeValues(actualPath, values);
+    console.log(`Edited value "${id}" in ${actualPath}`);
 });
 program
-    .command('rationale <file> <id>')
-    .description('Displays or updates the rationale for a specific value. Useful for focused rationale refinement after interviews.\nUnlike "edit --desc", this command defaults to showing the current rationale first (read-before-write pattern).\n\nWARNING: ALWAYS call without --update first to READ the current rationale, THEN call again with --update to write.\nThis preserves existing insights and prevents accidental loss.\n\nRequires the value ID. Use "list", "top10", or "pairs" output to find IDs.')
-    .option('--show', 'Only show the current rationale (default behavior)')
-    .option('--update <string>', 'Update the rationale to this new string')
-    .action(async (filePath, id, options) => {
-    await requireFile(filePath);
-    const values = await readValues(filePath);
-    const value = values.find(v => v.id === id);
-    if (!value) {
-        console.error(`Error: Value with id "${id}" not found.`);
-        process.exit(1);
-    }
-    if (options.update) {
-        const now = new Date().toISOString();
-        value.rationale = options.update;
-        value.updatedAt = now;
-        await writeValues(filePath, values);
-        console.log(`Updated rationale for "${value.title}" in ${filePath}`);
-    }
-    else {
-        console.log(`Rationale for "${value.title}" (${id}):`);
-        console.log(value.rationale || '(No rationale provided yet)');
-    }
-});
-program
-    .command('remove <file> <id>')
-    .description('Removes a value from the specified CSV file.\n\nRequires the value ID. Use "list" or "top10" to find IDs for values.')
+    .command('remove [file] <id>')
+    .description('Remove a value')
     .action(async (filePath, id) => {
-    await requireFile(filePath);
-    const values = await readValues(filePath);
+    const actualPath = filePath || 'value-hierarchy.md';
+    await requireFile(actualPath);
+    const values = await readValues(actualPath);
     const index = values.findIndex(v => v.id === id);
     if (index === -1) {
         console.error(`Error: Value with id "${id}" not found.`);
         process.exit(1);
     }
     values.splice(index, 1);
-    await writeValues(filePath, values);
-    console.log(`Removed value "${id}" from ${filePath}`);
+    await writeValues(actualPath, values);
+    console.log(`Removed value "${id}" from ${actualPath}`);
 });
 program
-    .command('interview <file>')
-    .description(`Generates a complete, ready-to-use interview protocol for you (the AI) to use with the human, emphasizing adding new values first and refining rationales.\n\nWARNING: ALWAYS READ THE CURRENT RATIONALE FOR A VALUE BEFORE UPDATING IT.\nThis prevents accidental loss of valuable insights accumulated during interviews.\n\nThe output contains:\n* Session header with the exact file being used\n* Full step-by-step interviewing protocol\n* Natural-language phrasing templates you can read or adapt\n* Objectivist-grounded probing questions\n\nRemember, start with the additive part: elicit new values as they emerge in conversation, and for each, probe deeply for their rationale (why this value is important). One effective technique is to generate 10 new potential values based on the existing hierarchy and suggest them to the user for selection (or they can propose their own). This is a fun little game that doesn't keep the conversation too slow. After adding values with rich rationales, use the separate "pairs" command to generate comparisons.\n\nThroughout the interview, emphasize improving rationales: After comparisons, ask "Why did you choose A over B?" and update the rationale accordingly using "edit" command.\n\nOPTIONS\n  --personality      Enable sophisticated, cultured personality mode (flag)\n\nAfter adding values and generating pairs, use "update-scores" command to apply results automatically.`)
-    .option('--personality', 'Enable sophisticated, cultured personality mode (boolean flag)')
+    .command('suggestions-to-improve [file]')
+    .description('Get suggestions (comparison pairs)')
+    .option('--num <number>', 'Number of pairs', '5')
     .action(async (filePath, options) => {
-    await requireFile(filePath);
-    const values = await readValues(filePath);
-    const now = new Date().toISOString();
-    const personality = options.personality ? 'cultured' : 'default';
-    const protocols = {
-        default: {
-            header: '=== VALUE-HIERARCHY INTERVIEW SESSION PREPARED FOR AI AGENT ===',
-            intro: '1. Introduce the session: "Let\'s start by exploring and adding any new values that come to mind, then we\'ll compare them to refine your hierarchy."',
-            remind: '5. Remind: "Remember, this hierarchy is always revisable. Inconsistencies resolve through more comparisons."',
-            update: '6. After all pairs, run "value-hierarchy update-scores <file> --responses \'A>B,C>D\'" to update scores automatically.'
-        },
-        cultured: {
-            header: '=== DELVING DEEP INTO YOUR VALUE HIERARCHY ===',
-            intro: '1. Start the conversation: "Oh, let\'s begin by delving into any new values bubbling up in your mind, shall we? We\'ll add them first, then compare to uncover the profound layers of your priorities."',
-            remind: '5. Remind gently: "Remember, this hierarchy is yours to shape - let\'s explore until we hit bedrock."',
-            update: '6. After all pairs, run "value-hierarchy update-scores <file> --responses \'A>B,C>D\'" to apply the insights seamlessly.'
+    const actualPath = filePath || 'value-hierarchy.md';
+    await requireFile(actualPath);
+    const values = await readValues(actualPath);
+    // Keep original order for priority-based calculations (file order = priority)
+    const valuesByPriority = [...values];
+    // Calculate tag counts
+    const tagCounts = {};
+    values.forEach(v => {
+        v.tags.split('|').forEach(tag => {
+            if (tag)
+                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        });
+    });
+    // Find tags with less than 5 values
+    const tagsNeedingMoreValues = Object.entries(tagCounts)
+        .filter(([tag, count]) => count < 5)
+        .map(([tag, count]) => ({ tag, currentCount: count }));
+    // 1. Values needing rationale (empty or very short rationale)
+    const valuesNeedingRationale = values
+        .filter(v => v.rationale.trim().length < 20)
+        .map(v => ({ title: v.title, id: v.id, rationaleLength: v.rationale.trim().length }));
+    // 2. Stale values (not updated in 30+ days)
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const staleValues = values
+        .filter(v => new Date(v.updatedAt) < thirtyDaysAgo)
+        .map(v => ({
+        title: v.title,
+        id: v.id,
+        updatedAt: v.updatedAt,
+        daysSinceUpdate: Math.floor((now.getTime() - new Date(v.updatedAt).getTime()) / (24 * 60 * 60 * 1000))
+    }));
+    // 3. Total comparisons (each comparison has exactly 1 win)
+    const totalComparisons = values.reduce((sum, v) => sum + v.wins, 0);
+    // 4. Average comparisons per value
+    const averageComparisonsPerValue = values.length > 0 ? Math.round((totalComparisons * 2 / values.length) * 10) / 10 : 0;
+    // 5. Uncompared values (never been compared)
+    const uncomparedValues = values
+        .filter(v => v.wins === 0 && v.losses === 0)
+        .map(v => ({ title: v.title, id: v.id }));
+    // 6. Top and bottom values (by priority = file order)
+    const topValues = valuesByPriority.slice(0, 3).map((v, idx) => ({
+        title: v.title,
+        id: v.id,
+        position: idx + 1
+    }));
+    const bottomValues = valuesByPriority.slice(-3).reverse().map((v, idx) => ({
+        title: v.title,
+        id: v.id,
+        position: valuesByPriority.length - 2 + idx
+    }));
+    // 7. Tags not represented (from available tags with zero values)
+    const availableTags = loadTags();
+    const tagsNotRepresented = availableTags.filter(tag => !tagCounts[tag]);
+    // 8. Lopsided values (skewed win/loss ratio)
+    const lopsidedValues = values
+        .filter(v => {
+        const total = v.wins + v.losses;
+        if (total < 5)
+            return false; // Need at least 5 comparisons
+        const winRate = v.wins / total;
+        return winRate > 0.8 || winRate < 0.2;
+    })
+        .map(v => {
+        const total = v.wins + v.losses;
+        return {
+            title: v.title,
+            id: v.id,
+            wins: v.wins,
+            losses: v.losses,
+            winRate: Math.round((v.wins / total) * 100) / 100
+        };
+    });
+    // 9. Vague titles (fewer than 3 words)
+    const vagueTitles = values
+        .filter(v => v.title.trim().split(/\s+/).length < 3)
+        .map(v => ({
+        title: v.title,
+        id: v.id,
+        wordCount: v.title.trim().split(/\s+/).length
+    }));
+    // 10. Values with no tags
+    const valuesWithNoTags = values
+        .filter(v => v.tags.trim().length === 0)
+        .map(v => ({ title: v.title, id: v.id }));
+    // Generate comparison pairs if we have enough values
+    let pairs = [];
+    if (values.length >= 2) {
+        const num = parseInt(options.num);
+        // Select pairs - prioritize values with fewer total comparisons
+        values.sort((a, b) => (a.wins + a.losses) - (b.wins + b.losses));
+        const minCount = values[0].wins + values[0].losses;
+        let candidates;
+        if (minCount >= 3) {
+            // Random biased to less compared
+            candidates = values;
         }
-    };
-    const proto = protocols[personality];
-    console.log(proto.header);
-    console.log('');
-    console.log('NOTE TO AI: This protocol is for YOUR reference only.');
-    console.log('Do NOT paste it verbatim to the human. Use it to guide the conversation naturally.');
-    console.log('Adapt the phrasing templates and probing questions to the flow of your dialogue.');
-    console.log('');
-    console.log(`Session File: ${filePath}`);
-    console.log(`Prepared At: ${now} (UTC)`);
-    console.log('');
-    if (personality === 'cultured') {
-        console.log('PERSONALITY MODE: SOPHISTICATED AND CULTURED');
-        console.log('');
-        console.log('This mode adopts a refined, intellectual tone, blending a hint of pretentiousness with genuine friendliness. The AI interviewer speaks with eloquence and wit, encouraging deep exploration of your values rather than superficial comparisons. It positions the conversation as an opportunity for profound self-discovery, much like a cultured mentor guiding you through layers of personal philosophy.');
-        console.log('');
-        console.log('Expect phrases that evoke sophistication and warmth, such as urging to "not skimp on the depths" or exploring "profound layers." The focus is on going deep, reminding you that your value hierarchy is malleable and worth thorough examination. This creates an engaging dialogue where comparisons become springboards for richer insights, aligned with Objectivist principles of life as the ultimate value and productive achievement as the central purpose.');
-        console.log('');
-        console.log('Ultimately, this personality turns the interview into a memorable, insightful experience. It balances snooty charm with approachable depth, fostering intellectual camaraderie. By delving into the "bedrock" of your priorities, it helps build not just a ranked list, but a deeply reflective understanding of what drives you, leading to more concrete actions in daily life.');
-        console.log('');
-    }
-    console.log('STEP-BY-STEP INTERVIEWING PROTOCOL:');
-    console.log(proto.intro);
-    console.log('2. Elicit new values: Use open-ended questions and the "add" command to capture emerging values as they come up in conversation.');
-    console.log('3. After adding values, generate pairs using "value-hierarchy pairs <file> --num 5" and proceed with comparisons.');
-    console.log('4. For each pair, use the friendly phrasing templates below, swapping in the value titles.');
-    console.log('5. After each comparison, jot down the human\'s pick and why (this often reveals deeper rationale).');
-    console.log('   # If you learned something new about why a value is important, update its rationale:');
-    console.log('   # value-hierarchy rationale <file> <id> --update "Refined rationale based on interview"');
-    console.log(proto.remind);
-    console.log(proto.update);
-    console.log('');
-    console.log('NATURAL-LANGUAGE PHRASE TEMPLATES:');
-    console.log('* "Between [Value A] and [Value B], which is more important to you right now, and why?"');
-    console.log('* "If you had to choose one over the other in a conflict, which would you prioritize: [Value A] or [Value B]?"');
-    console.log('* "Considering your long-term happiness, does [Value A] serve [Value B], or vice versa?"');
-    console.log('');
-    console.log('OBJECTIVIST-GROUNDED PROBING QUESTIONS:');
-    console.log('* "How does this choice align with life as your ultimate value?"');
-    console.log('* "Does this reflect productive achievement as your central purpose?"');
-    console.log('* "What concrete actions would this ranking lead to in your daily life?"');
-    console.log('');
-});
-program
-    .command('pairs <file>')
-    .description('Generates a list of N comparison pairs for the specified CSV file.\nPrioritizes least-compared values first, then switches to random selection once all values have >= 3 comparisons.\nUse this after the additive part of the interview to get fresh comparisons including new values.\n\nOutput is structured TOON format containing each pair\'s titles, IDs, and comparison counts.\nUse the TITLES (not IDs) when passing results to "update-scores --responses".\nUse the IDs when you need to call "edit", "remove", or "rationale" for a specific value.\n\nOPTIONS\n  --num <number>    Number of comparisons to generate (default: 5)')
-    .option('--num <number>', 'Number of comparisons to generate', '5')
-    .action(async (filePath, options) => {
-    await requireFile(filePath);
-    const values = await readValues(filePath);
-    if (values.length < 2) {
-        console.error('Error: Need at least 2 values for pairs. Add more values first.');
-        process.exit(1);
-    }
-    const num = parseInt(options.num);
-    // Select pairs
-    values.sort((a, b) => a.comparisonCount - b.comparisonCount);
-    const minCount = values[0].comparisonCount;
-    let candidates;
-    if (minCount >= 3) {
-        // Random biased to less compared
-        candidates = values;
-    }
-    else {
-        candidates = values.filter(v => v.comparisonCount === minCount);
-        if (candidates.length < num * 2) {
-            candidates = values.slice(0, Math.min(values.length, num * 2));
+        else {
+            candidates = values.filter(v => (v.wins + v.losses) === minCount);
+            if (candidates.length < num * 2) {
+                candidates = values.slice(0, Math.min(values.length, num * 2));
+            }
         }
-    }
-    // Shuffle candidates
-    for (let i = candidates.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-    }
-    const pairs = [];
-    for (let i = 0; i < Math.min(num * 2, candidates.length - 1); i += 2) {
-        pairs.push([candidates[i], candidates[i + 1]]);
-    }
-    const data = {
-        type: 'comparison-pairs',
-        file: filePath,
-        timestamp: new Date().toISOString(),
-        totalValuesInFile: values.length,
-        pairs: pairs.map((pair, idx) => ({
+        // Shuffle candidates
+        for (let i = candidates.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+        }
+        const selectedPairs = [];
+        for (let i = 0; i < Math.min(num * 2, candidates.length - 1); i += 2) {
+            selectedPairs.push([candidates[i], candidates[i + 1]]);
+        }
+        pairs = selectedPairs.map((pair, idx) => ({
             pairNumber: idx + 1,
             a: {
                 title: pair[0].title,
                 id: pair[0].id,
-                score: pair[0].score,
-                comparisonCount: pair[0].comparisonCount
+                wins: pair[0].wins,
+                losses: pair[0].losses
             },
             b: {
                 title: pair[1].title,
                 id: pair[1].id,
-                score: pair[1].score,
-                comparisonCount: pair[1].comparisonCount
+                wins: pair[1].wins,
+                losses: pair[1].losses
             }
-        }))
+        }));
+    }
+    // Build data object dynamically, only including non-empty categories
+    let data = {
+        type: 'suggestions-to-improve',
+        file: actualPath,
+        timestamp: new Date().toISOString(),
+        totalValues: values.length,
+        totalComparisons,
+        averageComparisonsPerValue
     };
+    // Always include comparisonPairs (even if empty pairs array)
+    data.comparisonPairs = {
+        description: 'Pairs of values to compare to refine your hierarchy priority. Prioritizes values with fewer comparisons.',
+        pairs
+    };
+    // Conditionally add suggestion categories only if they have values
+    if (tagsNeedingMoreValues.length > 0) {
+        data.tagsNeedingMoreValues = {
+            description: 'Tags that have fewer than 5 values associated with them. Consider adding more values in these categories.',
+            tags: tagsNeedingMoreValues
+        };
+    }
+    if (tagsNotRepresented.length > 0) {
+        data.tagsNotRepresented = {
+            description: 'Available tags from the Objectivist framework that currently have no values. Consider if any of these areas matter to you.',
+            tags: tagsNotRepresented
+        };
+    }
+    if (valuesNeedingRationale.length > 0) {
+        data.valuesNeedingRationale = {
+            description: 'Values with empty or very short rationales. Consider adding explanations for why these values matter to you.',
+            values: valuesNeedingRationale
+        };
+    }
+    if (staleValues.length > 0) {
+        data.staleValues = {
+            description: 'Values not updated in 30+ days. Consider if these still reflect your current priorities.',
+            values: staleValues
+        };
+    }
+    if (uncomparedValues.length > 0) {
+        data.uncomparedValues = {
+            description: 'Values that have never been compared to others. These need comparison to establish proper priority.',
+            values: uncomparedValues
+        };
+    }
+    if (topValues.length > 0) {
+        data.topValues = {
+            description: 'Your highest priority values (top 3 in the hierarchy). Review to confirm these truly matter most.',
+            values: topValues
+        };
+    }
+    if (bottomValues.length > 0) {
+        data.bottomValues = {
+            description: 'Your lowest priority values (bottom 3 in the hierarchy). Review to confirm placement or consider removal.',
+            values: bottomValues
+        };
+    }
+    if (lopsidedValues.length > 0) {
+        data.lopsidedValues = {
+            description: 'Values with very skewed win/loss ratios (>80% or <20% after 5+ comparisons). These may need re-evaluation.',
+            values: lopsidedValues
+        };
+    }
+    if (vagueTitles.length > 0) {
+        data.vagueTitles = {
+            description: 'Values with short titles (fewer than 3 words). Consider making these more specific and concrete.',
+            values: vagueTitles
+        };
+    }
+    if (valuesWithNoTags.length > 0) {
+        data.valuesWithNoTags = {
+            description: 'Values without any tags. Consider categorizing these to see how they fit in your Objectivist framework.',
+            values: valuesWithNoTags
+        };
+    }
     console.log(toon.encode(data));
 });
 program
-    .command('update-scores <file>')
-    .description('Updates scores and comparison counts based on interview responses.\nUse after an interview session to apply fixed-point score adjustments automatically.\n\nIMPORTANT: Responses use EXACT value TITLES (not IDs), case-sensitive.\nThe winner title goes LEFT of ">", the loser title goes RIGHT.\nMultiple responses are separated by commas.\n\nExample: --responses "Daily Walking>Physical Fitness,Reason>Purpose"\n\nIf a title is not found (exact match required), the command will exit with an error.')
-    .option('--responses <string>', 'Comma-separated responses using exact value titles: "WinnerTitle>LoserTitle,WinnerTitle>LoserTitle"')
-    .option('--pairs <string>', 'The pairs used in the interview, as output by interview command (optional, for validation)')
-    .action(async (filePath, options) => {
-    await requireFile(filePath);
-    if (!options.responses) {
-        console.error('Error: --responses is required.');
+    .command('set-higher-priority-than [file] <value> <value-to-be-above>')
+    .description('Reorder: move value above another')
+    .action(async (filePath, valueTitle, valueToBeAboveTitle) => {
+    const actualPath = filePath || 'value-hierarchy.md';
+    await requireFile(actualPath);
+    const values = await readValues(actualPath);
+    // Find both values
+    const valueIndex = values.findIndex(v => v.title === valueTitle);
+    const targetIndex = values.findIndex(v => v.title === valueToBeAboveTitle);
+    if (valueIndex === -1) {
+        console.error(`Error: Value "${valueTitle}" not found.`);
         process.exit(1);
     }
-    const values = await readValues(filePath);
-    const responses = options.responses.split(',');
-    const now = new Date().toISOString();
-    responses.forEach((resp) => {
-        const [winner, loser] = resp.split('>');
-        if (!winner || !loser) {
-            console.error(`Invalid response format: ${resp}. Expected "Winner>Loser".`);
-            process.exit(1);
-        }
-        const winValue = values.find(v => v.title === winner.trim());
-        const loseValue = values.find(v => v.title === loser.trim());
-        if (!winValue || !loseValue) {
-            console.error(`Value not found: ${winner} or ${loser}`);
-            process.exit(1);
-        }
-        // Fixed-point update: winner +10, loser -10 (not true Elo -- does not account for score differentials)
-        winValue.score += 10;
-        loseValue.score -= 10;
-        winValue.comparisonCount += 1;
-        loseValue.comparisonCount += 1;
-        winValue.updatedAt = now;
-        loseValue.updatedAt = now;
-    });
-    await writeValues(filePath, values);
-    console.log(`Updated scores for ${responses.length} comparisons in ${filePath}`);
-});
-program
-    .command('top10 <file>')
-    .description('Displays the current Top 10 values from the specified CSV file.\nThis is the primary view you should share with the human after every interview session.')
-    .option('--tag <tag>', 'Optional. Filter to Top 10 values that have this exact tag (matched against pipe-separated tags)')
-    .action(async (filePath, options) => {
-    await requireFile(filePath);
-    let values = await readValues(filePath);
-    if (options.tag) {
-        values = values.filter(v => v.tags.split('|').includes(options.tag));
+    if (targetIndex === -1) {
+        console.error(`Error: Value "${valueToBeAboveTitle}" not found.`);
+        process.exit(1);
     }
-    values.sort((a, b) => b.score - a.score);
-    const top10 = values.slice(0, 10);
-    const data = {
-        type: 'top-values',
-        file: filePath,
-        filter: options.tag || 'all',
-        timestamp: new Date().toISOString(),
-        values: top10.map((v, idx) => ({
-            rank: idx + 1,
-            title: v.title,
-            score: v.score,
-            comparisonCount: v.comparisonCount,
-            tags: v.tags,
-            rationale: v.rationale,
-            id: v.id,
-            createdAt: v.createdAt,
-            updatedAt: v.updatedAt
-        }))
-    };
-    console.log(toon.encode(data));
+    if (valueIndex === targetIndex) {
+        console.error(`Error: Cannot set a value higher priority than itself.`);
+        process.exit(1);
+    }
+    // Remove the value from its current position
+    const [value] = values.splice(valueIndex, 1);
+    // Adjust target index if we removed an item before it
+    const adjustedTargetIndex = valueIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    // Insert the value right before the target
+    values.splice(adjustedTargetIndex, 0, value);
+    // Update timestamp
+    value.updatedAt = new Date().toISOString();
+    await writeValues(filePath, values);
+    console.log(`Moved "${valueTitle}" to be higher priority than "${valueToBeAboveTitle}"`);
 });
 program
     .command('list <file>')
-    .description('Lists all values in the hierarchy sorted by current score (highest first).')
-    .option('--limit <number>', 'Limit the number of values shown')
-    .option('--tag <tag>', 'Filter to values that have this exact tag (matched against pipe-separated tags)')
+    .description('List values in priority order')
+    .option('--limit <number>', 'Limit results')
+    .option('--tag <tag>', 'Filter by tag')
     .action(async (filePath, options) => {
     await requireFile(filePath);
     let values = await readValues(filePath);
     if (options.tag) {
         values = values.filter(v => v.tags.split('|').includes(options.tag));
     }
-    values.sort((a, b) => b.score - a.score);
+    // Values are already in priority order from the file
     if (options.limit) {
         values = values.slice(0, parseInt(options.limit));
     }
@@ -480,124 +549,43 @@ program
         values: values.map((v, idx) => ({
             rank: idx + 1,
             title: v.title,
-            score: v.score,
-            comparisonCount: v.comparisonCount,
+            wins: v.wins,
+            losses: v.losses,
             tags: v.tags,
             rationale: v.rationale,
             id: v.id,
-            createdAt: v.createdAt,
             updatedAt: v.updatedAt
         }))
     };
     console.log(toon.encode(data));
 });
 program
-    .command('hierarchy <file>')
-    .description('Displays the full ranked hierarchy grouped first by overall rank, then by tag clusters.\nExtremely useful when reviewing how values cluster around major life areas with the human.')
+    .command('tags [file]')
+    .description('Show available tags (master list + tags from values)')
     .action(async (filePath) => {
-    await requireFile(filePath);
-    const values = await readValues(filePath);
-    values.sort((a, b) => b.score - a.score);
-    const data = {
-        type: 'hierarchy',
-        file: filePath,
-        timestamp: new Date().toISOString(),
-        values: values.map((v, idx) => ({
-            rank: idx + 1,
-            title: v.title,
-            score: v.score,
-            tags: v.tags,
-            rationale: v.rationale,
-            id: v.id,
-            comparisonCount: v.comparisonCount,
-            createdAt: v.createdAt,
-            updatedAt: v.updatedAt
-        }))
-    };
-    console.log(toon.encode(data));
-});
-program
-    .command('validate <file>')
-    .description('Validates the CSV file for integrity, duplicates, and suggestions for specificity.\n\nBroadness heuristic: Titles with fewer than 3 words are flagged as potentially too broad.\nThis is a rough word-count check -- the AI should use its own judgment beyond this heuristic.')
-    .action(async (filePath) => {
-    await requireFile(filePath);
-    const values = await readValues(filePath);
-    const issues = [];
-    const titles = new Set();
-    values.forEach(v => {
-        if (titles.has(v.title))
-            issues.push(`Duplicate title: ${v.title}`);
-        titles.add(v.title);
-        if (v.title.split(' ').length < 3)
-            issues.push(`Value "${v.title}" may be too broad; consider more detail.`);
-    });
-    if (issues.length === 0) {
-        console.log(`${filePath} is valid.`);
+    // Get master tags (from objectivist-lattice or fallback)
+    const masterTags = loadTags();
+    // Get tags from values if file provided
+    let valueTags = [];
+    if (filePath) {
+        const actualPath = filePath || 'value-hierarchy.md';
+        if (await fs.pathExists(actualPath)) {
+            const values = await readValues(actualPath);
+            const tagSet = new Set();
+            values.forEach(v => {
+                v.tags.split('|').forEach(tag => {
+                    if (tag.trim())
+                        tagSet.add(tag.trim());
+                });
+            });
+            valueTags = Array.from(tagSet);
+        }
     }
-    else {
-        console.log('Issues found:');
-        issues.forEach(issue => console.log(`- ${issue}`));
-    }
-});
-program
-    .command('guide')
-    .description('Displays guidelines for value specificity and Objectivist principles.')
-    .action(() => {
-    console.log('VALUE SPECIFICITY GUIDELINES:');
-    console.log('* Values should be actionable and personal, e.g., "Writing Tech Articles" not just "Writing".');
-    console.log('* Capture specific actions, contexts, or emotions, e.g., "Exploring Food with Wife" instead of "Family Exploration".');
-    console.log('* Align with Objectivism: Life as ultimate value, productive achievement as central purpose.');
-    console.log('* Examples: "Daily Walking and Strength Training", "Epistemology in AI Research", "Being a Family Man with Wife and Kids".');
-});
-program
-    .command('stats <file>')
-    .description('Shows key statistics and insights about the current hierarchy:\n* Total values\n* Total comparisons performed\n* Least-compared values\n* Strongest tag clusters\n* Value Specificity Score (average title word count -- higher is more specific)\n* One-sentence insight for you (the AI) to share with the human')
-    .action(async (filePath) => {
-    await requireFile(filePath);
-    const values = await readValues(filePath);
-    const totalValues = values.length;
-    const totalComparisons = values.reduce((sum, v) => sum + v.comparisonCount, 0);
-    const leastCompared = values.filter(v => v.comparisonCount === Math.min(...values.map(vv => vv.comparisonCount)));
-    const tagCounts = {};
-    values.forEach(v => {
-        v.tags.split('|').forEach(tag => {
-            if (tag)
-                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-        });
-    });
-    const strongestTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const avgTitleLength = values.reduce((sum, v) => sum + v.title.split(' ').length, 0) / totalValues;
-    const specificityScore = Math.round(avgTitleLength * 10) / 10; // e.g., 3.2
+    // Combine, deduplicate, and sort
+    const allTags = Array.from(new Set([...masterTags, ...valueTags])).sort();
     const data = {
-        type: 'stats',
-        file: filePath,
-        timestamp: new Date().toISOString(),
-        totalValues,
-        totalComparisons,
-        leastComparedValues: leastCompared.map(v => v.title),
-        strongestTagClusters: strongestTags.map(([tag, count]) => ({ tag, count })),
-        valueSpecificityScore: specificityScore,
-        insight: `Your hierarchy shows a strong focus on ${strongestTags[0]?.[0] || 'core values'}, with ${totalComparisons} comparisons refining your priorities.`
-    };
-    console.log(toon.encode(data));
-});
-program
-    .command('feedback <message>')
-    .description('Logs user feedback for future improvements. Message can be a string describing issues or suggestions.')
-    .action((message) => {
-    // For now, just log to console; in future, could save to file or send somewhere
-    console.log(`Feedback logged: ${message}`);
-});
-program
-    .command('tags')
-    .description('Displays the master tag list (synced from your objectivist-lattice repository, with fallback to the 21 standard tags).')
-    .action(() => {
-    const tags = loadTags();
-    const data = {
-        type: 'master-tags',
-        source: 'objectivist-lattice or fallback',
-        timestamp: new Date().toISOString(),
-        tags
+        type: 'tags',
+        tags: allTags
     };
     console.log(toon.encode(data));
 });
