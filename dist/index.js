@@ -50,7 +50,7 @@ program
     '  set-higher-priority-than [file] <value> <value-to-be-above>  Reorder values\n' +
     '  list [file]                         List values in priority order\n' +
     '  tags [file]                        Show available tags (master list + from values)')
-    .version('0.1.1');
+    .version('0.1.2');
 const fallbackTags = [
     // Core life areas (practical)
     'health', 'fitness', 'mental-health', 'sleep', 'nutrition',

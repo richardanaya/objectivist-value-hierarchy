@@ -19,7 +19,7 @@ program
     '  list [file]                         List values in priority order\n' +
     '  tags [file]                        Show available tags (master list + from values)'
   )
-  .version('0.1.1');
+  .version('0.1.2');
 
 interface Value {
   id: string;
