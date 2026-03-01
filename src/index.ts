@@ -11,15 +11,15 @@ program
   .name('vh')
   .description('Manage a personal value hierarchy in Markdown files.\n\n' +
     'COMMANDS\n' +
-    '  add [file] <title>                 Add a value\n' +
-    '  edit [file] <id>                   Edit a value\n' +
-    '  remove [file] <id>                  Remove a value\n' +
-    '  suggestions-to-improve [file]       Get improvement suggestions\n' +
-    '  set-higher-priority-than [file] <value> <value-to-be-above>  Reorder values\n' +
-    '  list [file]                         List values in priority order\n' +
-    '  tags [file]                        Show available tags (master list + from values)'
+    '  add <file> <title>                 Add a value\n' +
+    '  edit <file> <id>                   Edit a value\n' +
+    '  remove <file> <id>                  Remove a value\n' +
+    '  suggestions-to-improve <file>       Get improvement suggestions\n' +
+    '  set-higher-priority-than <file> <value> <value-to-be-above>  Reorder values\n' +
+    '  list <file>                         List values in priority order\n' +
+    '  tags                                Show available tags (master list)'
   )
-  .version('0.1.2');
+  .version('0.1.3');
 
 interface Value {
   id: string;
@@ -211,7 +211,7 @@ function generateId(title: string): string {
 }
 
 program
-  .command('add [file] <title>')
+  .command('add <file> <title>')
   .description('Add a value')
   .option('--tags <string>', 'Pipe-separated tags')
   .option('--desc <string>', 'Description')
@@ -246,7 +246,7 @@ program
   });
 
 program
-  .command('edit [file] <id>')
+  .command('edit <file> <id>')
   .description('Edit a value')
   .option('--title <string>', 'New title')
   .option('--tags <string>', 'New tags')
@@ -270,7 +270,7 @@ program
   });
 
 program
-  .command('remove [file] <id>')
+  .command('remove <file> <id>')
   .description('Remove a value')
   .action(async (filePath, id) => {
     const actualPath = filePath || 'value-hierarchy.md';
@@ -287,7 +287,7 @@ program
   });
 
 program
-  .command('suggestions-to-improve [file]')
+  .command('suggestions-to-improve <file>')
   .description('Get suggestions (comparison pairs)')
   .option('--num <number>', 'Number of pairs', '5')
   .action(async (filePath, options) => {
@@ -521,12 +521,11 @@ program
   });
 
 program
-  .command('set-higher-priority-than [file] <value> <value-to-be-above>')
+  .command('set-higher-priority-than <file> <value> <value-to-be-above>')
   .description('Reorder: move value above another')
   .action(async (filePath, valueTitle, valueToBeAboveTitle) => {
-    const actualPath = filePath || 'value-hierarchy.md';
-    await requireFile(actualPath);
-    const values = await readValues(actualPath);
+    await requireFile(filePath);
+    const values = await readValues(filePath);
     
     // Find both values
     const valueIndex = values.findIndex(v => v.title === valueTitle);
@@ -599,35 +598,17 @@ program
   });
 
 program
-  .command('tags [file]')
-  .description('Show available tags (master list + tags from values)')
-  .action(async (filePath) => {
+  .command('tags')
+  .description('Show available tags (master list)')
+  .action(async () => {
     // Get master tags (from objectivist-lattice or fallback)
     const masterTags = loadTags();
     
-    // Get tags from values if file provided
-    let valueTags: string[] = [];
-    
-    if (filePath) {
-      const actualPath = filePath || 'value-hierarchy.md';
-      if (await fs.pathExists(actualPath)) {
-        const values = await readValues(actualPath);
-        const tagSet = new Set<string>();
-        values.forEach(v => {
-          v.tags.split('|').forEach(tag => {
-            if (tag.trim()) tagSet.add(tag.trim());
-          });
-        });
-        valueTags = Array.from(tagSet);
-      }
-    }
-    
-    // Combine, deduplicate, and sort
-    const allTags = Array.from(new Set([...masterTags, ...valueTags])).sort();
-    
     const data = {
-      type: 'tags',
-      tags: allTags
+      type: 'master-tags',
+      source: 'objectivist-lattice or fallback',
+      timestamp: new Date().toISOString(),
+      tags: masterTags
     };
     console.log(toon.encode(data));
   });

@@ -21,27 +21,27 @@ npx objectivist-value-heirarchy <command>
 
 ```bash
 # Create your first value
-vh add "Daily Morning Exercise Routine"
+vh add value-hierarchy.md "Daily Morning Exercise Routine"
 
 # Add another value with tags
-vh add "Building Emergency Savings" --tags "finance|money|security"
+vh add value-hierarchy.md "Building Emergency Savings" --tags "finance|money|security"
 
 # Add a description
-vh add "Maintaining Close Friendships" --tags "relationships" --desc "Social connection is fundamental to wellbeing"
+vh add value-hierarchy.md "Maintaining Close Friendships" --tags "relationships" --desc "Social connection is fundamental to wellbeing"
 
 # List your hierarchy
 vh list value-hierarchy.md
 
 # Get suggestions for improvement
-vh suggestions-to-improve
+vh suggestions-to-improve value-hierarchy.md
 
 # Compare two values to establish priority
-vh set-higher-priority-than "Daily Morning Exercise Routine" "Building Emergency Savings"
+vh set-higher-priority-than value-hierarchy.md "Daily Morning Exercise Routine" "Building Emergency Savings"
 ```
 
 ## Commands
 
-### `vh add [file] <title>`
+### `vh add <file> <title>`
 
 Add a new value to your hierarchy.
 
@@ -52,11 +52,11 @@ Add a new value to your hierarchy.
 
 **Examples:**
 ```bash
-vh add "Learning New Skills" --tags "career|growth" --desc "Continuous learning keeps me adaptable"
-vh add "Quality Sleep" --tags "health|mental-health" --detail
+vh add value-hierarchy.md "Learning New Skills" --tags "career|growth" --desc "Continuous learning keeps me adaptable"
+vh add value-hierarchy.md "Quality Sleep" --tags "health|mental-health" --detail
 ```
 
-### `vh edit [file] <id>`
+### `vh edit <file> <id>`
 
 Edit an existing value.
 
@@ -67,19 +67,19 @@ Edit an existing value.
 
 **Example:**
 ```bash
-vh edit "Learning New Skills" --tags "career|skills|education"
+vh edit value-hierarchy.md "Learning New Skills" --tags "career|skills|education"
 ```
 
-### `vh remove [file] <id>`
+### `vh remove <file> <id>`
 
 Remove a value from your hierarchy.
 
 **Example:**
 ```bash
-vh remove "Old Hobby I No Longer Pursue"
+vh remove value-hierarchy.md "Old Hobby I No Longer Pursue"
 ```
 
-### `vh list [file]`
+### `vh list <file>`
 
 List all values in priority order (highest priority first).
 
@@ -94,17 +94,17 @@ vh list value-hierarchy.md --limit 5
 vh list value-hierarchy.md --tag health
 ```
 
-### `vh set-higher-priority-than [file] <value> <value-to-be-above>`
+### `vh set-higher-priority-than <file> <value> <value-to-be-above>`
 
 Reorder values by moving one above another. This updates the priority ranking.
 
 **Example:**
 ```bash
 # "Health" is now higher priority than "Career"
-vh set-higher-priority-than "Daily Exercise" "Job Promotion"
+vh set-higher-priority-than value-hierarchy.md "Daily Exercise" "Job Promotion"
 ```
 
-### `vh suggestions-to-improve [file]`
+### `vh suggestions-to-improve <file>`
 
 Get comprehensive suggestions for improving your value hierarchy. Returns:
 
@@ -124,17 +124,16 @@ Get comprehensive suggestions for improving your value hierarchy. Returns:
 
 **Example:**
 ```bash
-vh suggestions-to-improve --num 3
+vh suggestions-to-improve value-hierarchy.md --num 3
 ```
 
-### `vh tags [file]`
+### `vh tags`
 
-Show all available tags. Combines the master tag list with any tags used in your values.
+Show all available tags. Shows the master tag list.
 
 **Example:**
 ```bash
 vh tags
-vh tags my-values.md
 ```
 
 ## Available Tags
@@ -162,7 +161,7 @@ When you compare two values, the winner gets a "win" and the loser gets a "loss"
 
 ### File Format
 
-Values are stored in a readable Markdown format (`value-hierarchy.md` by default):
+Values are stored in a readable Markdown format:
 
 ```markdown
 # Value Hierarchy
