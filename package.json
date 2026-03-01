@@ -1,10 +1,10 @@
 {
   "name": "objectivist-value-hierarchy",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "description": "AI Assistant Tool for Conducting Objectivist Value Hierarchy Interviews with Humans",
   "main": "dist/index.js",
   "bin": {
-    "value-hierarchy": "dist/index.js"
+    "vh": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -23,10 +23,7 @@
   "dependencies": {
     "@toon-format/toon": "^2.1.0",
     "commander": "^12.0.0",
-    "csv-parser": "^3.0.0",
-    "csv-writer": "^1.6.0",
-    "fs-extra": "^11.2.0",
-    "slugify": "^1.6.6"
+    "fs-extra": "^11.2.0"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
