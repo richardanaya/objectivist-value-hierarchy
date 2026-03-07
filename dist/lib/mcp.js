@@ -15,9 +15,9 @@ const MCP_TOOL_NAMES = {
 };
 export class MCPServer {
     tools = new Map();
-    currentDir;
-    constructor(currentDir = process.cwd()) {
-        this.currentDir = currentDir;
+    defaultFilePath;
+    constructor(defaultFilePath) {
+        this.defaultFilePath = defaultFilePath;
         this.registerTools();
     }
     registerTools() {
@@ -76,13 +76,13 @@ export class MCPServer {
         return Array.from(this.tools.values());
     }
     async executeCommand(commandName, params) {
-        // Resolve file path relative to current directory
+        // Resolve file path - use provided file or default
         const resolveFile = (file) => {
             if (!file)
-                return path.join(this.currentDir, 'value-hierarchy.md');
+                return this.defaultFilePath;
             if (path.isAbsolute(file))
                 return file;
-            return path.join(this.currentDir, file);
+            return path.join(path.dirname(this.defaultFilePath), file);
         };
         // Map MCP tool names back to internal command names
         const internalCommand = Object.entries(MCP_TOOL_NAMES).find(([_, mcpName]) => mcpName === commandName)?.[0] || commandName;

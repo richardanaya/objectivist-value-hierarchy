@@ -57,10 +57,10 @@ const MCP_TOOL_NAMES: Record<string, string> = {
 
 export class MCPServer {
   private tools: Map<string, Tool> = new Map()
-  private currentDir: string
+  private defaultFilePath: string
 
-  constructor(currentDir: string = process.cwd()) {
-    this.currentDir = currentDir
+  constructor(defaultFilePath: string) {
+    this.defaultFilePath = defaultFilePath
     this.registerTools()
   }
 
@@ -131,11 +131,11 @@ export class MCPServer {
   }
 
   private async executeCommand(commandName: string, params: Record<string, unknown>): Promise<unknown> {
-    // Resolve file path relative to current directory
+    // Resolve file path - use provided file or default
     const resolveFile = (file?: string): string => {
-      if (!file) return path.join(this.currentDir, 'value-hierarchy.md')
+      if (!file) return this.defaultFilePath
       if (path.isAbsolute(file)) return file
-      return path.join(this.currentDir, file)
+      return path.join(path.dirname(this.defaultFilePath), file)
     }
 
     // Map MCP tool names back to internal command names

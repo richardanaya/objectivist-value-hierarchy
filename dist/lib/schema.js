@@ -208,11 +208,10 @@ export const commandSchemas = [
     {
         name: 'mcp',
         description: 'Run as an MCP (Model Context Protocol) server',
-        responseSchema: {
-            description: 'MCP server runs until stdin closes',
-            properties: {},
-        },
-        examples: ['vh mcp'],
+        arguments: [
+            { name: '--file <path>', description: 'Path to the value hierarchy markdown file to use as the database (default: value-hierarchy.md)', required: false },
+        ],
+        examples: ['vh mcp', 'vh mcp --file my-values.md'],
     },
 ];
 export function getSchema(commandName) {

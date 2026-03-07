@@ -438,8 +438,10 @@ program
 program
   .command('mcp')
   .description('Run as an MCP (Model Context Protocol) server')
-  .action(async () => {
-    const server = new MCPServer(currentDir)
+  .option('--file <path>', 'Path to the value hierarchy markdown file to use as the database', 'value-hierarchy.md')
+  .action(async (options) => {
+    const filePath = path.isAbsolute(options.file) ? options.file : path.join(currentDir, options.file)
+    const server = new MCPServer(filePath)
     await server.processStdio()
   })
 
