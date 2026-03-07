@@ -1,6 +1,5 @@
 import { commandSchemas } from './schema.js';
 import { addValue, editValue, removeValue, getSuggestions, setHigherPriorityThan, listValues, loadTags, } from '../commands/values.js';
-import path from 'path';
 // Commands to exclude from MCP (CLI-only commands)
 const EXCLUDED_COMMANDS = new Set(['schema', 'describe', 'mcp']);
 // Map CLI command names to MCP tool names for clarity
@@ -36,6 +35,10 @@ export class MCPServer {
         // Use requestSchema if available, otherwise empty
         if (schema.requestSchema) {
             for (const [fieldName, field] of Object.entries(schema.requestSchema.properties)) {
+                // Skip file parameter for MCP tools - they use the --file from CLI
+                if (fieldName === 'file') {
+                    continue;
+                }
                 const prop = {
                     type: field.type,
                     description: field.description,
@@ -76,19 +79,12 @@ export class MCPServer {
         return Array.from(this.tools.values());
     }
     async executeCommand(commandName, params) {
-        // Resolve file path - use provided file or default
-        const resolveFile = (file) => {
-            if (!file)
-                return this.defaultFilePath;
-            if (path.isAbsolute(file))
-                return file;
-            return path.join(path.dirname(this.defaultFilePath), file);
-        };
+        // Resolve file path - always use the default file path from --file CLI option
+        const filePath = this.defaultFilePath;
         // Map MCP tool names back to internal command names
         const internalCommand = Object.entries(MCP_TOOL_NAMES).find(([_, mcpName]) => mcpName === commandName)?.[0] || commandName;
         switch (internalCommand) {
             case 'add': {
-                const filePath = resolveFile(params.file);
                 return await addValue(filePath, {
                     title: params.title,
                     tags: params.tags,
@@ -97,7 +93,6 @@ export class MCPServer {
                 });
             }
             case 'edit': {
-                const filePath = resolveFile(params.file);
                 return await editValue(filePath, params.id, {
                     title: params.title,
                     tags: params.tags,
@@ -105,19 +100,15 @@ export class MCPServer {
                 });
             }
             case 'remove': {
-                const filePath = resolveFile(params.file);
                 return await removeValue(filePath, params.id);
             }
             case 'suggestions-to-improve': {
-                const filePath = resolveFile(params.file);
                 return await getSuggestions(filePath, params.num ?? 5);
             }
             case 'set-higher-priority-than': {
-                const filePath = resolveFile(params.file);
                 return await setHigherPriorityThan(filePath, params.value, params.valueToBeAbove);
             }
             case 'list': {
-                const filePath = resolveFile(params.file);
                 return await listValues(filePath, {
                     limit: params.limit,
                     tag: params.tag,

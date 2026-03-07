@@ -83,6 +83,11 @@ export class MCPServer {
     // Use requestSchema if available, otherwise empty
     if (schema.requestSchema) {
       for (const [fieldName, field] of Object.entries(schema.requestSchema.properties)) {
+        // Skip file parameter for MCP tools - they use the --file from CLI
+        if (fieldName === 'file') {
+          continue
+        }
+
         const prop: Record<string, unknown> = {
           type: field.type,
           description: field.description,
@@ -131,19 +136,14 @@ export class MCPServer {
   }
 
   private async executeCommand(commandName: string, params: Record<string, unknown>): Promise<unknown> {
-    // Resolve file path - use provided file or default
-    const resolveFile = (file?: string): string => {
-      if (!file) return this.defaultFilePath
-      if (path.isAbsolute(file)) return file
-      return path.join(path.dirname(this.defaultFilePath), file)
-    }
+    // Resolve file path - always use the default file path from --file CLI option
+    const filePath = this.defaultFilePath
 
     // Map MCP tool names back to internal command names
     const internalCommand = Object.entries(MCP_TOOL_NAMES).find(([_, mcpName]) => mcpName === commandName)?.[0] || commandName
 
     switch (internalCommand) {
       case 'add': {
-        const filePath = resolveFile(params.file as string)
         return await addValue(filePath, {
           title: params.title as string,
           tags: params.tags as string,
@@ -153,7 +153,6 @@ export class MCPServer {
       }
 
       case 'edit': {
-        const filePath = resolveFile(params.file as string)
         return await editValue(filePath, params.id as string, {
           title: params.title as string,
           tags: params.tags as string,
@@ -162,22 +161,18 @@ export class MCPServer {
       }
 
       case 'remove': {
-        const filePath = resolveFile(params.file as string)
         return await removeValue(filePath, params.id as string)
       }
 
       case 'suggestions-to-improve': {
-        const filePath = resolveFile(params.file as string)
         return await getSuggestions(filePath, (params.num as number) ?? 5)
       }
 
       case 'set-higher-priority-than': {
-        const filePath = resolveFile(params.file as string)
         return await setHigherPriorityThan(filePath, params.value as string, params.valueToBeAbove as string)
       }
 
       case 'list': {
-        const filePath = resolveFile(params.file as string)
         return await listValues(filePath, {
           limit: params.limit as number,
           tag: params.tag as string,

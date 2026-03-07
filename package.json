@@ -1,6 +1,6 @@
 {
   "name": "objectivist-value-hierarchy",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "AI-first CLI for managing personal value hierarchies in Markdown",
   "main": "dist/index.js",
   "bin": {
