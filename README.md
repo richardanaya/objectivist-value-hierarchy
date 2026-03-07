@@ -54,6 +54,19 @@ vh <command> --json '<json-payload>' [options]
 - `--fields <fields>` - Comma-separated list of fields to include (e.g., `values.title,values.rank`)
 - `--dry-run` - Validate commands without executing mutating operations
 
+### Input Validation
+
+All JSON inputs are now validated using **Zod** schemas. This provides:
+- Strong type checking and validation
+- Clear, specific error messages for malformed input
+- Protection against invalid titles, tags, and data
+- Better safety when used by AI agents
+
+Example error:
+```json
+{"error": "title: Title must be at least 3 characters"}
+```
+
 ### `vh add --json '{...}'`
 
 Add a new value to your hierarchy.
@@ -272,6 +285,15 @@ Physical health is the foundation for everything else I want to achieve.
 5. **Review regularly** - Run `suggestions-to-improve` weekly to identify gaps
 6. **Compare systematically** - Work through comparison pairs to build confidence in your hierarchy
 7. **Use dry-run** - Test mutating operations with `--dry-run` first
+8. **Validate inputs** - All JSON payloads are validated with Zod — check error messages for helpful feedback
+
+## License
+
+MIT
+
+## Author
+
+Richard Anaya
 
 ## License
 

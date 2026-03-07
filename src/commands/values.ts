@@ -1,5 +1,6 @@
 import fs from 'fs-extra'
 import path from 'path'
+import { loadTags } from '../lib/tags.js'
 
 export interface Value {
   id: string
@@ -27,36 +28,6 @@ export interface EditValueOptions {
 export interface ListOptions {
   limit?: number
   tag?: string
-}
-
-const fallbackTags = [
-  // Core life areas (practical)
-  'health', 'fitness', 'mental-health', 'sleep', 'nutrition',
-  'career', 'work', 'skills', 'learning', 'education',
-  'finance', 'money', 'investing', 'savings', 'budget',
-  'relationships', 'family', 'friends', 'romance', 'community',
-  'home', 'housing', 'environment', 'organization', 'cleanliness',
-  
-  // Personal development
-  'creativity', 'hobbies', 'arts', 'music', 'writing',
-  'goals', 'planning', 'habits', 'discipline', 'focus',
-  'self-improvement', 'confidence', 'mindfulness', 'reflection',
-  
-  // Experiences & enjoyment
-  'travel', 'adventure', 'experiences', 'fun', 'entertainment',
-  'food', 'cooking', 'dining',
-  'nature', 'outdoors', 'sports', 'recreation'
-]
-
-export function loadTags(): string[] {
-  // Try to load from objectivist-lattice repo
-  const home = process.env.HOME || ''
-  const latticePath = path.join(home, 'objectivist-lattice', 'tags.txt')
-  if (fs.existsSync(latticePath)) {
-    const content = fs.readFileSync(latticePath, 'utf8')
-    return content.split('\n').map((line: string) => line.trim()).filter((line: string) => line.length > 0)
-  }
-  return fallbackTags
 }
 
 export async function readValues(filePath: string): Promise<Value[]> {

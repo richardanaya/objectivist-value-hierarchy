@@ -6,12 +6,13 @@ import {
   getSuggestions,
   setHigherPriorityThan,
   listValues,
-  loadTags,
   readValues,
   writeValues,
   type Value,
 } from '../commands/values.js'
+import { loadTags } from './tags.js'
 import path from 'path'
+
 
 interface JSONRPCRequest {
   jsonrpc: '2.0'

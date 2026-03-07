@@ -1,6 +1,6 @@
 {
   "name": "objectivist-value-hierarchy",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "AI-first CLI for managing personal value hierarchies in Markdown",
   "main": "dist/index.js",
   "bin": {
@@ -8,7 +8,12 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsc --watch",
+    "test": "echo \"No tests yet - coming soon\" && exit 0",
+    "lint": "echo \"ESLint not configured yet\" && exit 0",
+    "format": "echo \"Prettier not configured yet\" && exit 0",
+    "clean": "rm -rf dist",
+    "prepare": "npm run build"
   },
   "keywords": [
     "objectivism",

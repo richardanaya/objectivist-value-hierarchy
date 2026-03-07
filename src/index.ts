@@ -11,8 +11,8 @@ import {
   getSuggestions,
   setHigherPriorityThan,
   listValues,
-  loadTags,
 } from './commands/values.js'
+import { loadTags } from './lib/tags.js'
 import { getSchema, getMutatingCommands } from './lib/schema.js'
 import { formatOutput, OutputFormat } from './lib/output.js'
 import { MCPServer } from './lib/mcp.js'
