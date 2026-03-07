@@ -1,7 +1,7 @@
 {
   "name": "objectivist-value-hierarchy",
-  "version": "0.1.3",
-  "description": "AI Assistant Tool for Conducting Objectivist Value Hierarchy Interviews with Humans",
+  "version": "0.3.0",
+  "description": "AI-first CLI for managing personal value hierarchies in Markdown",
   "main": "dist/index.js",
   "bin": {
     "vh": "dist/index.js"
@@ -14,12 +14,15 @@
     "objectivism",
     "values",
     "hierarchy",
-    "cli"
+    "cli",
+    "ai",
+    "agent",
+    "mcp"
   ],
   "author": "Richard Anaya",
   "license": "MIT",
   "repository": "git@github.com:richardanaya/objectivist-value-hierarchy.git",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@toon-format/toon": "^2.1.0",
     "commander": "^12.0.0",
