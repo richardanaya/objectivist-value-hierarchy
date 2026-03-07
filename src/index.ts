@@ -17,6 +17,15 @@ import { getSchema, getMutatingCommands } from './lib/schema.js'
 import { formatOutput, OutputFormat } from './lib/output.js'
 import { MCPServer } from './lib/mcp.js'
 import path from 'path'
+import {
+  AddValueSchema,
+  EditValueSchema,
+  RemoveValueSchema,
+  SetHigherPrioritySchema,
+  ListValuesSchema,
+  SuggestionsSchema,
+  parseJsonWithSchema,
+} from './lib/validation.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -132,20 +141,13 @@ program
   .action(async (options, command) => {
     const opts = command.optsWithGlobals()
 
-    // Parse JSON input
-    let data: { title?: string; file?: string; tags?: string; desc?: string; detail?: boolean }
-    try {
-      data = JSON.parse(options.json)
-    } catch (e) {
-      console.log(formatWithOptions({ error: 'Invalid JSON in --json' }, opts))
+    // Parse and validate JSON using Zod
+    const parseResult = parseJsonWithSchema(options.json, AddValueSchema)
+    if (!parseResult.success) {
+      console.log(formatWithOptions({ error: parseResult.error }, opts))
       process.exit(1)
     }
-
-    // Validate required fields
-    if (!data.title) {
-      console.log(formatWithOptions({ error: 'Missing required field: title' }, opts))
-      process.exit(1)
-    }
+    const data = parseResult.data
 
     const filePath = resolveFile(data.file)
 
@@ -184,20 +186,13 @@ program
   .action(async (options, command) => {
     const opts = command.optsWithGlobals()
 
-    // Parse JSON input
-    let data: { id?: string; file?: string; title?: string; tags?: string; desc?: string }
-    try {
-      data = JSON.parse(options.json)
-    } catch (e) {
-      console.log(formatWithOptions({ error: 'Invalid JSON in --json' }, opts))
+    // Parse and validate JSON using Zod
+    const parseResult = parseJsonWithSchema(options.json, EditValueSchema)
+    if (!parseResult.success) {
+      console.log(formatWithOptions({ error: parseResult.error }, opts))
       process.exit(1)
     }
-
-    // Validate required fields
-    if (!data.id) {
-      console.log(formatWithOptions({ error: 'Missing required field: id' }, opts))
-      process.exit(1)
-    }
+    const data = parseResult.data
 
     const filePath = resolveFile(data.file)
 
@@ -235,20 +230,13 @@ program
   .action(async (options, command) => {
     const opts = command.optsWithGlobals()
 
-    // Parse JSON input
-    let data: { id?: string; file?: string }
-    try {
-      data = JSON.parse(options.json)
-    } catch (e) {
-      console.log(formatWithOptions({ error: 'Invalid JSON in --json' }, opts))
+    // Parse and validate JSON using Zod
+    const parseResult = parseJsonWithSchema(options.json, RemoveValueSchema)
+    if (!parseResult.success) {
+      console.log(formatWithOptions({ error: parseResult.error }, opts))
       process.exit(1)
     }
-
-    // Validate required fields
-    if (!data.id) {
-      console.log(formatWithOptions({ error: 'Missing required field: id' }, opts))
-      process.exit(1)
-    }
+    const data = parseResult.data
 
     const filePath = resolveFile(data.file)
 
@@ -282,15 +270,15 @@ program
   .action(async (options, command) => {
     const opts = command.optsWithGlobals()
 
-    // Parse JSON input if provided
+    // Parse and validate JSON using Zod
     let data: { file?: string; num?: number } = {}
     if (options.json) {
-      try {
-        data = JSON.parse(options.json)
-      } catch (e) {
-        console.log(formatWithOptions({ error: 'Invalid JSON in --json' }, opts))
+      const parseResult = parseJsonWithSchema(options.json, SuggestionsSchema)
+      if (!parseResult.success) {
+        console.log(formatWithOptions({ error: parseResult.error }, opts))
         process.exit(1)
       }
+      data = parseResult.data
     }
 
     const filePath = resolveFile(data.file)
@@ -312,24 +300,13 @@ program
   .action(async (options, command) => {
     const opts = command.optsWithGlobals()
 
-    // Parse JSON input
-    let data: { value?: string; valueToBeAbove?: string; file?: string }
-    try {
-      data = JSON.parse(options.json)
-    } catch (e) {
-      console.log(formatWithOptions({ error: 'Invalid JSON in --json' }, opts))
+    // Parse and validate JSON using Zod
+    const parseResult = parseJsonWithSchema(options.json, SetHigherPrioritySchema)
+    if (!parseResult.success) {
+      console.log(formatWithOptions({ error: parseResult.error }, opts))
       process.exit(1)
     }
-
-    // Validate required fields
-    if (!data.value) {
-      console.log(formatWithOptions({ error: 'Missing required field: value' }, opts))
-      process.exit(1)
-    }
-    if (!data.valueToBeAbove) {
-      console.log(formatWithOptions({ error: 'Missing required field: valueToBeAbove' }, opts))
-      process.exit(1)
-    }
+    const data = parseResult.data
 
     const filePath = resolveFile(data.file)
 
@@ -363,15 +340,15 @@ program
   .action(async (options, command) => {
     const opts = command.optsWithGlobals()
 
-    // Parse JSON input if provided
+    // Parse and validate JSON using Zod (empty object is valid for list)
     let data: { file?: string; limit?: number; tag?: string } = {}
     if (options.json) {
-      try {
-        data = JSON.parse(options.json)
-      } catch (e) {
-        console.log(formatWithOptions({ error: 'Invalid JSON in --json' }, opts))
+      const parseResult = parseJsonWithSchema(options.json, ListValuesSchema)
+      if (!parseResult.success) {
+        console.log(formatWithOptions({ error: parseResult.error }, opts))
         process.exit(1)
       }
+      data = parseResult.data
     }
 
     const filePath = resolveFile(data.file)
