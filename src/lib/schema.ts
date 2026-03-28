@@ -252,6 +252,114 @@ export const commandSchemas: CommandSchema[] = [
     ],
     examples: ['vh mcp', 'vh mcp --file my-values.md'],
   },
+  {
+    name: 'log-emotion',
+    description: 'Log an emotion with optional notes. Prefer using existing emotion categories when possible - use "emotion-categories" command to see what you have already logged. Emotions are always stored as lowercase.',
+    requestSchema: {
+      description: 'Request body for logging an emotion. Tip: Run "vh emotion-categories --json \'{}\'" first to see existing emotions and try to reuse those categories for consistency.',
+      properties: {
+        file: { type: 'string', description: 'Path to the value hierarchy markdown file', default: 'value-hierarchy.md' },
+        emotion: { type: 'string', description: 'The emotion to log (e.g., "joyful", "anxious", "grateful"). Will be normalized to lowercase. Try to reuse existing emotions from "emotion-categories" command.' },
+        notes: { type: 'string', description: 'Optional notes about the emotion or context' },
+      },
+      required: ['emotion'],
+    },
+    responseSchema: {
+      description: 'Logged emotion confirmation',
+      properties: {
+        success: { type: 'boolean', description: 'Whether operation succeeded', readOnly: true },
+        message: { type: 'string', description: 'Status message', readOnly: true },
+        emotion: { type: 'object', description: 'The logged emotion entry', readOnly: true },
+      },
+    },
+    examples: [
+      'vh log-emotion --json \'{"emotion": "joyful"}\'',
+      'vh log-emotion --json \'{"emotion": "anxious", "notes": "Before big presentation"}\'',
+    ],
+    mutating: true,
+  },
+  {
+    name: 'list-emotions',
+    description: 'List emotions from the emotion log',
+    requestSchema: {
+      description: 'Request body for listing emotions',
+      properties: {
+        file: { type: 'string', description: 'Path to the value hierarchy markdown file', default: 'value-hierarchy.md' },
+        days: { type: 'number', description: 'Filter to emotions from the last N days' },
+        limit: { type: 'number', description: 'Limit number of results' },
+      },
+    },
+    responseSchema: {
+      description: 'List of emotions',
+      properties: {
+        type: { type: 'string', description: 'Response type', readOnly: true },
+        file: { type: 'string', description: 'File path', readOnly: true },
+        timestamp: { type: 'string', format: 'date-time', description: 'Timestamp', readOnly: true },
+        filter: { type: 'object', description: 'Applied filters', readOnly: true },
+        count: { type: 'number', description: 'Total count of emotions matching filter', readOnly: true },
+        emotions: { type: 'array', description: 'Array of emotion entries', readOnly: true },
+      },
+    },
+    examples: [
+      'vh list-emotions --json \'{}\'',
+      'vh list-emotions --json \'{"days": 7}\'',
+      'vh list-emotions --json \'{"limit": 10}\'',
+    ],
+  },
+  {
+    name: 'emotion-categories',
+    description: 'List distinct emotion categories with counts. Use this BEFORE logging new emotions to see what categories already exist and maintain consistency in your emotion tracking.',
+    requestSchema: {
+      description: 'Request body for listing emotion categories. Run this before log-emotion to retrieve existing emotion names and promote consistent categorization.',
+      properties: {
+        file: { type: 'string', description: 'Path to the value hierarchy markdown file', default: 'value-hierarchy.md' },
+        minCount: { type: 'number', description: 'Only show emotions logged at least this many times' },
+      },
+    },
+    responseSchema: {
+      description: 'Distinct emotion categories with occurrence stats',
+      properties: {
+        type: { type: 'string', description: 'Response type', readOnly: true },
+        file: { type: 'string', description: 'File path', readOnly: true },
+        timestamp: { type: 'string', format: 'date-time', description: 'Timestamp', readOnly: true },
+        filter: { type: 'object', description: 'Applied filters', readOnly: true },
+        totalUnique: { type: 'number', description: 'Number of unique emotions', readOnly: true },
+        categories: { type: 'array', description: 'Array of emotion categories with counts', readOnly: true },
+      },
+    },
+    examples: [
+      'vh emotion-categories --json \'{}\'',
+      'vh emotion-categories --json \'{"minCount": 3}\'',
+    ],
+  },
+  {
+    name: 'delete-emotions',
+    description: 'Delete emotions from the log by time range. Use with caution - deleted emotions cannot be recovered. Supports dry-run to preview what would be deleted.',
+    requestSchema: {
+      description: 'Request body for deleting emotions. Must specify at least one of: from (start date), to (end date). Dates should be ISO 8601 format. Both are inclusive.',
+      properties: {
+        file: { type: 'string', description: 'Path to the value hierarchy markdown file', default: 'value-hierarchy.md' },
+        from: { type: 'string', description: 'Delete emotions on or after this date (ISO 8601 format). Example: "2026-03-01T00:00:00Z"' },
+        to: { type: 'string', description: 'Delete emotions on or before this date (ISO 8601 format). Example: "2026-03-28T23:59:59Z"' },
+      },
+    },
+    responseSchema: {
+      description: 'Deletion confirmation with count of deleted emotions',
+      properties: {
+        success: { type: 'boolean', description: 'Whether operation succeeded', readOnly: true },
+        message: { type: 'string', description: 'Status message', readOnly: true },
+        deletedCount: { type: 'number', description: 'Number of emotions deleted', readOnly: true },
+        remainingCount: { type: 'number', description: 'Number of emotions remaining', readOnly: true },
+        filter: { type: 'object', description: 'Applied filters', readOnly: true },
+      },
+    },
+    examples: [
+      'vh delete-emotions --json \'{"from": "2026-03-01T00:00:00Z"}\' --dry-run',
+      'vh delete-emotions --json \'{"from": "2026-03-01T00:00:00Z", "to": "2026-03-15T23:59:59Z"}\'',
+      'vh delete-emotions --json \'{"to": "2026-03-01T00:00:00Z"}\'',
+    ],
+    mutating: true,
+  },
 ]
 
 export function getSchema(commandName?: string): CommandSchema | CommandSchema[] | null {

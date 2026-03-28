@@ -51,6 +51,40 @@ export const SuggestionsSchema = z.object({
   num: z.number().int().min(1).max(20).optional().default(5),
 }).merge(FileSchema)
 
+export const LogEmotionSchema = z.object({
+  emotion: z.string()
+    .min(1, 'Emotion is required')
+    .max(50, 'Emotion must be less than 50 characters')
+    .regex(/^[a-zA-Z0-9 _-]+$/, 'Emotion can only contain letters, numbers, spaces, underscores, and hyphens'),
+  notes: z.string().max(500, 'Notes must be less than 500 characters').optional(),
+}).merge(FileSchema)
+
+export const ListEmotionsSchema = z.object({
+  days: z.number().int().min(1).optional(),
+  limit: z.number().int().positive().optional(),
+}).merge(FileSchema)
+
+export const ListEmotionCategoriesSchema = z.object({
+  minCount: z.number().int().min(1).optional(),
+}).merge(FileSchema)
+
+export const DeleteEmotionsSchema = z.object({
+  from: z.string().optional().refine(
+    (val) => !val || !isNaN(Date.parse(val)),
+    { message: 'from must be a valid ISO date string' }
+  ),
+  to: z.string().optional().refine(
+    (val) => !val || !isNaN(Date.parse(val)),
+    { message: 'to must be a valid ISO date string' }
+  ),
+}).merge(FileSchema).refine(
+  (data) => {
+    // Must have at least one filter
+    return data.from !== undefined || data.to !== undefined
+  },
+  { message: 'Must specify at least one filter: from or to' }
+)
+
 export const JsonParseError = z.object({
   error: z.string(),
 })

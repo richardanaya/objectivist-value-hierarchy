@@ -12,6 +12,12 @@ import {
   setHigherPriorityThan,
   listValues,
 } from './commands/values.js'
+import {
+  logEmotion,
+  listEmotions,
+  listEmotionCategories,
+  deleteEmotions,
+} from './commands/emotions.js'
 import { loadTags } from './lib/tags.js'
 import { getSchema, getMutatingCommands } from './lib/schema.js'
 import { formatOutput, OutputFormat } from './lib/output.js'
@@ -24,6 +30,10 @@ import {
   SetHigherPrioritySchema,
   ListValuesSchema,
   SuggestionsSchema,
+  LogEmotionSchema,
+  ListEmotionsSchema,
+  ListEmotionCategoriesSchema,
+  DeleteEmotionsSchema,
   parseJsonWithSchema,
 } from './lib/validation.js'
 
@@ -357,6 +367,155 @@ program
       const result = await listValues(filePath, {
         limit: data.limit,
         tag: data.tag,
+      })
+      console.log(formatWithOptions(result, opts))
+    } catch (err) {
+      console.log(formatWithOptions({ error: err instanceof Error ? err.message : String(err) }, opts))
+      process.exit(1)
+    }
+  })
+
+program
+  .command('log-emotion')
+  .description('Log an emotion with optional notes')
+  .requiredOption('--json <json>', 'Full JSON payload with emotion and optional notes')
+  .action(async (options, command) => {
+    const opts = command.optsWithGlobals()
+
+    // Parse and validate JSON using Zod
+    const parseResult = parseJsonWithSchema(options.json, LogEmotionSchema)
+    if (!parseResult.success) {
+      console.log(formatWithOptions({ error: parseResult.error }, opts))
+      process.exit(1)
+    }
+    const data = parseResult.data
+
+    const filePath = resolveFile(data.file)
+
+    if (!shouldExecute('log-emotion')) {
+      console.log(
+        formatWithOptions(
+          {
+            dryRun: true,
+            command: 'log-emotion',
+            params: { file: filePath, emotion: data.emotion, notes: data.notes },
+          },
+          opts
+        )
+      )
+      return
+    }
+
+    try {
+      const result = await logEmotion(filePath, {
+        emotion: data.emotion,
+        notes: data.notes,
+      })
+      console.log(formatWithOptions(result, opts))
+    } catch (err) {
+      console.log(formatWithOptions({ error: err instanceof Error ? err.message : String(err) }, opts))
+      process.exit(1)
+    }
+  })
+
+program
+  .command('list-emotions')
+  .description('List emotions from the emotion log')
+  .option('--json <json>', 'JSON payload with optional file, days, and limit fields')
+  .action(async (options, command) => {
+    const opts = command.optsWithGlobals()
+
+    // Parse and validate JSON using Zod (empty object is valid)
+    let data: { file?: string; days?: number; limit?: number } = {}
+    if (options.json) {
+      const parseResult = parseJsonWithSchema(options.json, ListEmotionsSchema)
+      if (!parseResult.success) {
+        console.log(formatWithOptions({ error: parseResult.error }, opts))
+        process.exit(1)
+      }
+      data = parseResult.data
+    }
+
+    const filePath = resolveFile(data.file)
+
+    try {
+      const result = await listEmotions(filePath, {
+        days: data.days,
+        limit: data.limit,
+      })
+      console.log(formatWithOptions(result, opts))
+    } catch (err) {
+      console.log(formatWithOptions({ error: err instanceof Error ? err.message : String(err) }, opts))
+      process.exit(1)
+    }
+  })
+
+program
+  .command('emotion-categories')
+  .description('List distinct emotion categories with counts')
+  .option('--json <json>', 'JSON payload with optional file and minCount fields')
+  .action(async (options, command) => {
+    const opts = command.optsWithGlobals()
+
+    // Parse and validate JSON using Zod (empty object is valid)
+    let data: { file?: string; minCount?: number } = {}
+    if (options.json) {
+      const parseResult = parseJsonWithSchema(options.json, ListEmotionCategoriesSchema)
+      if (!parseResult.success) {
+        console.log(formatWithOptions({ error: parseResult.error }, opts))
+        process.exit(1)
+      }
+      data = parseResult.data
+    }
+
+    const filePath = resolveFile(data.file)
+
+    try {
+      const result = await listEmotionCategories(filePath, {
+        minCount: data.minCount,
+      })
+      console.log(formatWithOptions(result, opts))
+    } catch (err) {
+      console.log(formatWithOptions({ error: err instanceof Error ? err.message : String(err) }, opts))
+      process.exit(1)
+    }
+  })
+
+program
+  .command('delete-emotions')
+  .description('Delete emotions from the log by time range')
+  .requiredOption('--json <json>', 'Full JSON payload with from and/or to dates (ISO 8601 format)')
+  .action(async (options, command) => {
+    const opts = command.optsWithGlobals()
+
+    // Parse and validate JSON using Zod
+    const parseResult = parseJsonWithSchema(options.json, DeleteEmotionsSchema)
+    if (!parseResult.success) {
+      console.log(formatWithOptions({ error: parseResult.error }, opts))
+      process.exit(1)
+    }
+    const data = parseResult.data
+
+    const filePath = resolveFile(data.file)
+
+    if (!shouldExecute('delete-emotions')) {
+      console.log(
+        formatWithOptions(
+          {
+            dryRun: true,
+            command: 'delete-emotions',
+            params: { file: filePath, from: data.from, to: data.to },
+          },
+          opts
+        )
+      )
+      return
+    }
+
+    try {
+      const result = await deleteEmotions(filePath, {
+        from: data.from,
+        to: data.to,
       })
       console.log(formatWithOptions(result, opts))
     } catch (err) {

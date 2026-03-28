@@ -10,6 +10,12 @@ import {
   writeValues,
   type Value,
 } from '../commands/values.js'
+import {
+  logEmotion,
+  listEmotions,
+  listEmotionCategories,
+  deleteEmotions,
+} from '../commands/emotions.js'
 import { loadTags } from './tags.js'
 import path from 'path'
 
@@ -54,6 +60,10 @@ const MCP_TOOL_NAMES: Record<string, string> = {
   tags: 'list_value_tags',
   'suggestions-to-improve': 'value_suggestions_to_improve',
   'set-higher-priority-than': 'set_value_higher_priority_than',
+  'log-emotion': 'log_emotion',
+  'list-emotions': 'list_emotions',
+  'emotion-categories': 'emotion_categories',
+  'delete-emotions': 'delete_emotions',
 }
 
 export class MCPServer {
@@ -89,9 +99,19 @@ export class MCPServer {
           continue
         }
 
+        // Custom field descriptions for MCP context
+        const improvedFieldDescriptions: Record<string, Record<string, string>> = {
+          'log-emotion': {
+            emotion: 'The emotion to log (e.g., "joyful", "anxious", "grateful"). Will be normalized to lowercase. IMPORTANT: Check emotion_categories first and try to reuse existing emotion names for consistency.',
+            notes: 'Optional notes about the emotion or context. Include details about what triggered the emotion or the situation.',
+          },
+        }
+
+        const customDesc = improvedFieldDescriptions[schema.name]?.[fieldName]
+
         const prop: Record<string, unknown> = {
           type: field.type,
-          description: field.description,
+          description: customDesc || field.description,
         }
 
         if (field.items) {
@@ -119,6 +139,10 @@ export class MCPServer {
       set_value_higher_priority_than: 'Reorder your hierarchy by moving one value to be higher priority than another',
       list_values: 'List all values in your hierarchy in priority order, with optional filtering by tag or limit',
       list_value_tags: 'List all available value categories/tags from the Objectivist framework for categorizing your values',
+      log_emotion: 'Log an emotion with optional notes to track emotional patterns over time. IMPORTANT: Try to use existing emotion categories for consistency - first call emotion_categories to see what emotions you have already logged. Emotions are always stored as lowercase.',
+      list_emotions: 'List recent emotions from your emotion log, optionally filtered by days or limited count',
+      emotion_categories: 'Get a distinct list of all emotion types you have logged, with occurrence counts and last logged timestamps. Use this BEFORE logging new emotions to see what categories already exist and maintain consistency.',
+      delete_emotions: 'Delete emotions from the log within a specified time range. Use with caution - deleted emotions cannot be recovered. Specify from and/or to dates (ISO 8601 format, inclusive).',
     }
 
     return {
@@ -188,6 +212,33 @@ export class MCPServer {
           timestamp: new Date().toISOString(),
           tags,
         }
+      }
+
+      case 'log-emotion': {
+        return await logEmotion(filePath, {
+          emotion: params.emotion as string,
+          notes: params.notes as string,
+        })
+      }
+
+      case 'list-emotions': {
+        return await listEmotions(filePath, {
+          days: params.days as number,
+          limit: params.limit as number,
+        })
+      }
+
+      case 'emotion-categories': {
+        return await listEmotionCategories(filePath, {
+          minCount: params.minCount as number,
+        })
+      }
+
+      case 'delete-emotions': {
+        return await deleteEmotions(filePath, {
+          from: params.from as string,
+          to: params.to as string,
+        })
       }
 
       default:
