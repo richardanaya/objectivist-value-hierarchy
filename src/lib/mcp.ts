@@ -15,11 +15,15 @@ import {
   listEmotions,
   listEmotionCategories,
   deleteEmotions,
+  editEmotion,
+  removeEmotion,
 } from '../commands/emotions.js'
 import {
   captureAesthetic,
   listAesthetics,
   aestheticTypes,
+  editAesthetic,
+  removeAesthetic,
 } from '../commands/aesthetics.js'
 import { loadTags } from './tags.js'
 import path from 'path'
@@ -69,9 +73,13 @@ const MCP_TOOL_NAMES: Record<string, string> = {
   'list-emotions': 'list_emotions',
   'emotion-categories': 'emotion_categories',
   'delete-emotions': 'delete_emotions',
+  'edit-emotion': 'edit_emotion',
+  'remove-emotion': 'remove_emotion',
   'capture-aesthetic': 'capture_aesthetic',
   'list-aesthetics': 'list_aesthetics',
   'aesthetic-types': 'aesthetic_types',
+  'edit-aesthetic': 'edit_aesthetic',
+  'remove-aesthetic': 'remove_aesthetic',
 }
 
 export class MCPServer {
@@ -160,9 +168,13 @@ export class MCPServer {
       list_emotions: 'List recent emotions from your emotion log, optionally filtered by days or limited count',
       emotion_categories: 'Get a distinct list of all emotion types you have logged, with occurrence counts and last logged timestamps. Use this BEFORE logging new emotions to see what categories already exist and maintain consistency.',
       delete_emotions: 'Delete emotions from the log within a specified time range. Use with caution - deleted emotions cannot be recovered. Specify from and/or to dates (ISO 8601 format, inclusive).',
+      edit_emotion: 'Edit an existing emotion by its ID. Update the emotion name or notes. Use list_emotions first to find the ID.',
+      remove_emotion: 'Remove a single emotion by its ID. Use list_emotions first to find the ID.',
       capture_aesthetic: 'Capture an aesthetic reference (image, music, sculpture, etc.) that embodies your values. Store art/media you find meaningful with connections to why it resonates. The "why" field is crucial - explain how this connects to your value hierarchy. This creates a concrete map of your abstract values for inspiration.',
       list_aesthetics: 'Browse your captured aesthetic references. Filter by type (image, music, etc.) or tags to find inspiration that aligns with your values.',
       aesthetic_types: 'Show distribution of aesthetic types (image, music, sculpture, etc.) with counts and percentages. See what kinds of art/media you value most.',
+      edit_aesthetic: 'Edit an existing aesthetic reference by its ID. Update title, type, source, URL, tags, or the "why" explanation. Use list_aesthetics first to find the ID.',
+      remove_aesthetic: 'Remove a single aesthetic reference by its ID. Use list_aesthetics first to find the ID.',
     }
 
     return {
@@ -261,6 +273,17 @@ export class MCPServer {
         })
       }
 
+      case 'edit-emotion': {
+        return await editEmotion(filePath, params.id as string, {
+          emotion: params.emotion as string,
+          notes: params.notes as string,
+        })
+      }
+
+      case 'remove-emotion': {
+        return await removeEmotion(filePath, params.id as string)
+      }
+
       case 'capture-aesthetic': {
         return await captureAesthetic(filePath, {
           title: params.title as string,
@@ -283,6 +306,21 @@ export class MCPServer {
 
       case 'aesthetic-types': {
         return await aestheticTypes(filePath)
+      }
+
+      case 'edit-aesthetic': {
+        return await editAesthetic(filePath, params.id as string, {
+          title: params.title as string,
+          type: params.type as string,
+          source: params.source as string,
+          url: params.url as string,
+          tags: params.tags as string,
+          why: params.why as string,
+        })
+      }
+
+      case 'remove-aesthetic': {
+        return await removeAesthetic(filePath, params.id as string)
       }
 
       default:
