@@ -85,6 +85,54 @@ export const DeleteEmotionsSchema = z.object({
   { message: 'Must specify at least one filter: from or to' }
 )
 
+export const CaptureAestheticSchema = z.object({
+  title: z.string()
+    .min(3, 'Title must be at least 3 characters')
+    .max(200, 'Title must be less than 200 characters'),
+  type: z.string()
+    .min(1, 'Type is required')
+    .regex(/^[a-z]+$/, 'Type must be lowercase letters only (e.g., image, music, sculpture)'),
+  source: z.string().max(200).optional(),
+  url: z.string().url('Must be a valid URL').max(2000).optional().or(z.literal('')),
+  tags: z.string()
+    .regex(/^[a-z0-9|.-]*$/, 'Tags must be lowercase alphanumeric with | separators')
+    .optional(),
+  why: z.string().max(2000, 'Why must be less than 2000 characters').optional(),
+  context: z.string().max(1000, 'Context must be less than 1000 characters').optional(),
+}).merge(FileSchema)
+
+export const ListAestheticsSchema = z.object({
+  type: z.string().optional(),
+  tag: z.string().optional(),
+  limit: z.number().int().positive().optional(),
+}).merge(FileSchema)
+
+export const AestheticTypesSchema = z.object({}).merge(FileSchema)
+
+export const EditEmotionSchema = z.object({
+  id: z.string().min(1, 'ID is required'),
+  emotion: z.string().min(1).max(50).optional(),
+  notes: z.string().max(500).optional(),
+}).merge(FileSchema)
+
+export const RemoveEmotionSchema = z.object({
+  id: z.string().min(1, 'ID is required'),
+}).merge(FileSchema)
+
+export const EditAestheticSchema = z.object({
+  id: z.string().min(1, 'ID is required'),
+  title: z.string().min(3).max(200).optional(),
+  type: z.string().regex(/^[a-z]+$/, 'Type must be lowercase letters only').optional(),
+  source: z.string().max(200).optional(),
+  url: z.string().url('Must be a valid URL').max(2000).optional().or(z.literal('')),
+  tags: z.string().regex(/^[a-z0-9|.-]*$/, 'Tags must be lowercase alphanumeric with | separators').optional(),
+  why: z.string().max(2000).optional(),
+}).merge(FileSchema)
+
+export const RemoveAestheticSchema = z.object({
+  id: z.string().min(1, 'ID is required'),
+}).merge(FileSchema)
+
 export const JsonParseError = z.object({
   error: z.string(),
 })

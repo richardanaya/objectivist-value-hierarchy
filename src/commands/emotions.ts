@@ -1,10 +1,17 @@
 import fs from 'fs-extra'
 import path from 'path'
+import crypto from 'crypto'
 
 export interface Emotion {
+  id: string
   timestamp: string
   emotion: string
   notes: string
+}
+
+// Generate a short unique ID
+function generateId(): string {
+  return crypto.randomBytes(4).toString('hex') // 8 character hex string
 }
 
 export interface LogEmotionOptions {
@@ -38,17 +45,19 @@ export function parseEmotions(content: string): Emotion[] {
       break
     }
     
-    // Parse emotion table row | Timestamp | Emotion | Notes |
-    const match = line.match(/^\| ([^|]+) \| ([^|]+) \| ([^|]*) \|$/)
+    // Parse emotion table row | ID | Timestamp | Emotion | Notes |
+    const match = line.match(/^\| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]*) \|$/)
     if (match) {
-      const timestamp = match[1].trim()
-      const emotion = match[2].trim()
-      const notes = match[3].trim()
+      const id = match[1].trim()
+      const timestamp = match[2].trim()
+      const emotion = match[3].trim()
+      const notes = match[4].trim()
       
       // Skip header row
-      if (timestamp === 'Timestamp' || timestamp.match(/^-+$/)) continue
+      if (id === 'ID' || id.match(/^-+$/)) continue
       
       emotions.push({
+        id,
         timestamp,
         emotion,
         notes
@@ -66,11 +75,11 @@ function formatEmotionsTable(emotions: Emotion[]): string {
   }
   
   let markdown = '## Emotion Log\n\n'
-  markdown += '| Timestamp | Emotion | Notes |\n'
-  markdown += '|-----------|---------|-------|\n'
+  markdown += '| ID | Timestamp | Emotion | Notes |\n'
+  markdown += '|----|-----------|---------|-------|\n'
   
   for (const e of emotions) {
-    markdown += `| ${e.timestamp} | ${e.emotion} | ${e.notes} |\n`
+    markdown += `| ${e.id} | ${e.timestamp} | ${e.emotion} | ${e.notes} |\n`
   }
   
   return markdown
@@ -123,8 +132,9 @@ export async function logEmotion(filePath: string, options: LogEmotionOptions): 
   // Normalize emotion to lowercase
   const normalizedEmotion = options.emotion.toLowerCase().trim()
   
-  // Create new emotion entry
+  // Create new emotion entry with unique ID
   const newEmotion: Emotion = {
+    id: generateId(),
     timestamp: new Date().toISOString(),
     emotion: normalizedEmotion,
     notes: options.notes || ''
@@ -142,7 +152,7 @@ export async function logEmotion(filePath: string, options: LogEmotionOptions): 
   
   return {
     success: true,
-    message: `Logged emotion "${normalizedEmotion}" at ${newEmotion.timestamp}`,
+    message: `Logged emotion "${normalizedEmotion}" with ID ${newEmotion.id}`,
     emotion: newEmotion
   }
 }
@@ -339,5 +349,85 @@ export async function deleteEmotions(filePath: string, options: DeleteEmotionsOp
       from: options.from,
       to: options.to
     }
+  }
+}
+
+export async function editEmotion(
+  filePath: string,
+  id: string,
+  options: { emotion?: string; notes?: string }
+): Promise<{
+  success: boolean
+  message: string
+  emotion: Emotion
+}> {
+  if (!await fs.pathExists(filePath)) {
+    throw new Error(`File "${filePath}" does not exist.`)
+  }
+  
+  const content = await fs.readFile(filePath, 'utf8')
+  const emotions = parseEmotions(content)
+  
+  const emotionIndex = emotions.findIndex(e => e.id === id)
+  if (emotionIndex === -1) {
+    throw new Error(`Emotion with ID "${id}" not found.`)
+  }
+  
+  const emotion = emotions[emotionIndex]
+  
+  // Update fields
+  if (options.emotion !== undefined) {
+    emotion.emotion = options.emotion.toLowerCase().trim()
+  }
+  if (options.notes !== undefined) {
+    emotion.notes = options.notes
+  }
+  
+  // Rebuild the file with updated emotions
+  const baseContent = stripEmotionLog(content)
+  const emotionSection = formatEmotionsTable(emotions)
+  const newContent = baseContent + '\n\n' + emotionSection
+  
+  await fs.writeFile(filePath, newContent)
+  
+  return {
+    success: true,
+    message: `Edited emotion ${id}`,
+    emotion
+  }
+}
+
+export async function removeEmotion(
+  filePath: string,
+  id: string
+): Promise<{
+  success: boolean
+  message: string
+}> {
+  if (!await fs.pathExists(filePath)) {
+    throw new Error(`File "${filePath}" does not exist.`)
+  }
+  
+  const content = await fs.readFile(filePath, 'utf8')
+  const emotions = parseEmotions(content)
+  
+  const emotionIndex = emotions.findIndex(e => e.id === id)
+  if (emotionIndex === -1) {
+    throw new Error(`Emotion with ID "${id}" not found.`)
+  }
+  
+  // Remove the emotion
+  emotions.splice(emotionIndex, 1)
+  
+  // Rebuild the file with remaining emotions
+  const baseContent = stripEmotionLog(content)
+  const emotionSection = formatEmotionsTable(emotions)
+  const newContent = baseContent + '\n\n' + emotionSection
+  
+  await fs.writeFile(filePath, newContent)
+  
+  return {
+    success: true,
+    message: `Removed emotion ${id} from ${filePath}`
   }
 }

@@ -127,7 +127,42 @@ export async function readValues(filePath: string): Promise<Value[]> {
   return values
 }
 
+// Extract trailing sections (emotions, aesthetics, etc.) that come after the Values section
+function extractTrailingSections(content: string): string {
+  const lines = content.split('\n')
+  let inValues = false
+  let trailingStart = -1
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    
+    if (line.trim() === '## Values') {
+      inValues = true
+      continue
+    }
+    
+    if (inValues && line.match(/^## /) && !line.match(/^### /)) {
+      // Found a new section after Values
+      trailingStart = i
+      break
+    }
+  }
+  
+  if (trailingStart >= 0) {
+    return '\n' + lines.slice(trailingStart).join('\n')
+  }
+  
+  return ''
+}
+
 export async function writeValues(filePath: string, values: Value[]): Promise<void> {
+  // Read existing content to preserve trailing sections (emotions, aesthetics)
+  let trailingSections = ''
+  if (await fs.pathExists(filePath)) {
+    const content = await fs.readFile(filePath, 'utf8')
+    trailingSections = extractTrailingSections(content)
+  }
+  
   const totalComparisons = values.reduce((sum, v) => sum + v.wins + v.losses, 0)
   const lastUpdated = values.length > 0 
     ? values.reduce((latest, v) => v.updatedAt > latest ? v.updatedAt : latest, values[0].updatedAt)
@@ -162,6 +197,9 @@ export async function writeValues(filePath: string, values: Value[]): Promise<vo
       markdown += `\n`
     }
   }
+  
+  // Append trailing sections (emotions, aesthetics) if they exist
+  markdown += trailingSections
   
   await fs.writeFile(filePath, markdown)
 }

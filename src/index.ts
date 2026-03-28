@@ -17,7 +17,16 @@ import {
   listEmotions,
   listEmotionCategories,
   deleteEmotions,
+  editEmotion,
+  removeEmotion,
 } from './commands/emotions.js'
+import {
+  captureAesthetic,
+  listAesthetics,
+  aestheticTypes,
+  editAesthetic,
+  removeAesthetic,
+} from './commands/aesthetics.js'
 import { loadTags } from './lib/tags.js'
 import { getSchema, getMutatingCommands } from './lib/schema.js'
 import { formatOutput, OutputFormat } from './lib/output.js'
@@ -34,6 +43,13 @@ import {
   ListEmotionsSchema,
   ListEmotionCategoriesSchema,
   DeleteEmotionsSchema,
+  EditEmotionSchema,
+  RemoveEmotionSchema,
+  CaptureAestheticSchema,
+  ListAestheticsSchema,
+  AestheticTypesSchema,
+  EditAestheticSchema,
+  RemoveAestheticSchema,
   parseJsonWithSchema,
 } from './lib/validation.js'
 
@@ -517,6 +533,291 @@ program
         from: data.from,
         to: data.to,
       })
+      console.log(formatWithOptions(result, opts))
+    } catch (err) {
+      console.log(formatWithOptions({ error: err instanceof Error ? err.message : String(err) }, opts))
+      process.exit(1)
+    }
+  })
+
+program
+  .command('capture-aesthetic')
+  .description('Capture an aesthetic reference (image, music, sculpture, etc.) that embodies your values')
+  .requiredOption('--json <json>', 'Full JSON payload with title, type, and optional fields')
+  .action(async (options, command) => {
+    const opts = command.optsWithGlobals()
+
+    // Parse and validate JSON using Zod
+    const parseResult = parseJsonWithSchema(options.json, CaptureAestheticSchema)
+    if (!parseResult.success) {
+      console.log(formatWithOptions({ error: parseResult.error }, opts))
+      process.exit(1)
+    }
+    const data = parseResult.data
+
+    const filePath = resolveFile(data.file)
+
+    if (!shouldExecute('capture-aesthetic')) {
+      console.log(
+        formatWithOptions(
+          {
+            dryRun: true,
+            command: 'capture-aesthetic',
+            params: { 
+              file: filePath, 
+              title: data.title, 
+              type: data.type,
+              source: data.source,
+              url: data.url,
+              tags: data.tags,
+              why: data.why,
+              context: data.context,
+            },
+          },
+          opts
+        )
+      )
+      return
+    }
+
+    try {
+      const result = await captureAesthetic(filePath, {
+        title: data.title,
+        type: data.type,
+        source: data.source,
+        url: data.url,
+        tags: data.tags,
+        why: data.why,
+        context: data.context,
+      })
+      console.log(formatWithOptions(result, opts))
+    } catch (err) {
+      console.log(formatWithOptions({ error: err instanceof Error ? err.message : String(err) }, opts))
+      process.exit(1)
+    }
+  })
+
+program
+  .command('list-aesthetics')
+  .description('List captured aesthetic references')
+  .option('--json <json>', 'JSON payload with optional file, type, tag, and limit fields')
+  .action(async (options, command) => {
+    const opts = command.optsWithGlobals()
+
+    // Parse and validate JSON using Zod (empty object is valid)
+    let data: { file?: string; type?: string; tag?: string; limit?: number } = {}
+    if (options.json) {
+      const parseResult = parseJsonWithSchema(options.json, ListAestheticsSchema)
+      if (!parseResult.success) {
+        console.log(formatWithOptions({ error: parseResult.error }, opts))
+        process.exit(1)
+      }
+      data = parseResult.data
+    }
+
+    const filePath = resolveFile(data.file)
+
+    try {
+      const result = await listAesthetics(filePath, {
+        type: data.type,
+        tag: data.tag,
+        limit: data.limit,
+      })
+      console.log(formatWithOptions(result, opts))
+    } catch (err) {
+      console.log(formatWithOptions({ error: err instanceof Error ? err.message : String(err) }, opts))
+      process.exit(1)
+    }
+  })
+
+program
+  .command('aesthetic-types')
+  .description('Show distribution of aesthetic types with counts and percentages')
+  .option('--json <json>', 'JSON payload with optional file field')
+  .action(async (options, command) => {
+    const opts = command.optsWithGlobals()
+
+    // Parse and validate JSON using Zod (empty object is valid)
+    let data: { file?: string } = {}
+    if (options.json) {
+      const parseResult = parseJsonWithSchema(options.json, AestheticTypesSchema)
+      if (!parseResult.success) {
+        console.log(formatWithOptions({ error: parseResult.error }, opts))
+        process.exit(1)
+      }
+      data = parseResult.data
+    }
+
+    const filePath = resolveFile(data.file)
+
+    try {
+      const result = await aestheticTypes(filePath)
+      console.log(formatWithOptions(result, opts))
+    } catch (err) {
+      console.log(formatWithOptions({ error: err instanceof Error ? err.message : String(err) }, opts))
+      process.exit(1)
+    }
+  })
+
+program
+  .command('edit-emotion')
+  .description('Edit an existing emotion by ID')
+  .requiredOption('--json <json>', 'Full JSON payload with id and optional emotion/notes fields')
+  .action(async (options, command) => {
+    const opts = command.optsWithGlobals()
+
+    const parseResult = parseJsonWithSchema(options.json, EditEmotionSchema)
+    if (!parseResult.success) {
+      console.log(formatWithOptions({ error: parseResult.error }, opts))
+      process.exit(1)
+    }
+    const data = parseResult.data
+
+    const filePath = resolveFile(data.file)
+
+    if (!shouldExecute('edit-emotion')) {
+      console.log(
+        formatWithOptions(
+          {
+            dryRun: true,
+            command: 'edit-emotion',
+            params: { file: filePath, id: data.id, emotion: data.emotion, notes: data.notes },
+          },
+          opts
+        )
+      )
+      return
+    }
+
+    try {
+      const result = await editEmotion(filePath, data.id, {
+        emotion: data.emotion,
+        notes: data.notes,
+      })
+      console.log(formatWithOptions(result, opts))
+    } catch (err) {
+      console.log(formatWithOptions({ error: err instanceof Error ? err.message : String(err) }, opts))
+      process.exit(1)
+    }
+  })
+
+program
+  .command('remove-emotion')
+  .description('Remove a single emotion by ID')
+  .requiredOption('--json <json>', 'Full JSON payload with id field')
+  .action(async (options, command) => {
+    const opts = command.optsWithGlobals()
+
+    const parseResult = parseJsonWithSchema(options.json, RemoveEmotionSchema)
+    if (!parseResult.success) {
+      console.log(formatWithOptions({ error: parseResult.error }, opts))
+      process.exit(1)
+    }
+    const data = parseResult.data
+
+    const filePath = resolveFile(data.file)
+
+    if (!shouldExecute('remove-emotion')) {
+      console.log(
+        formatWithOptions(
+          {
+            dryRun: true,
+            command: 'remove-emotion',
+            params: { file: filePath, id: data.id },
+          },
+          opts
+        )
+      )
+      return
+    }
+
+    try {
+      const result = await removeEmotion(filePath, data.id)
+      console.log(formatWithOptions(result, opts))
+    } catch (err) {
+      console.log(formatWithOptions({ error: err instanceof Error ? err.message : String(err) }, opts))
+      process.exit(1)
+    }
+  })
+
+program
+  .command('edit-aesthetic')
+  .description('Edit an existing aesthetic by ID')
+  .requiredOption('--json <json>', 'Full JSON payload with id and optional fields to update')
+  .action(async (options, command) => {
+    const opts = command.optsWithGlobals()
+
+    const parseResult = parseJsonWithSchema(options.json, EditAestheticSchema)
+    if (!parseResult.success) {
+      console.log(formatWithOptions({ error: parseResult.error }, opts))
+      process.exit(1)
+    }
+    const data = parseResult.data
+
+    const filePath = resolveFile(data.file)
+
+    if (!shouldExecute('edit-aesthetic')) {
+      console.log(
+        formatWithOptions(
+          {
+            dryRun: true,
+            command: 'edit-aesthetic',
+            params: { file: filePath, id: data.id, title: data.title, type: data.type, why: data.why },
+          },
+          opts
+        )
+      )
+      return
+    }
+
+    try {
+      const result = await editAesthetic(filePath, data.id, {
+        title: data.title,
+        type: data.type,
+        source: data.source,
+        url: data.url,
+        tags: data.tags,
+        why: data.why,
+      })
+      console.log(formatWithOptions(result, opts))
+    } catch (err) {
+      console.log(formatWithOptions({ error: err instanceof Error ? err.message : String(err) }, opts))
+      process.exit(1)
+    }
+  })
+
+program
+  .command('remove-aesthetic')
+  .description('Remove a single aesthetic by ID')
+  .requiredOption('--json <json>', 'Full JSON payload with id field')
+  .action(async (options, command) => {
+    const opts = command.optsWithGlobals()
+
+    const parseResult = parseJsonWithSchema(options.json, RemoveAestheticSchema)
+    if (!parseResult.success) {
+      console.log(formatWithOptions({ error: parseResult.error }, opts))
+      process.exit(1)
+    }
+    const data = parseResult.data
+
+    const filePath = resolveFile(data.file)
+
+    if (!shouldExecute('remove-aesthetic')) {
+      console.log(
+        formatWithOptions(
+          {
+            dryRun: true,
+            command: 'remove-aesthetic',
+            params: { file: filePath, id: data.id },
+          },
+          opts
+        )
+      )
+      return
+    }
+
+    try {
+      const result = await removeAesthetic(filePath, data.id)
       console.log(formatWithOptions(result, opts))
     } catch (err) {
       console.log(formatWithOptions({ error: err instanceof Error ? err.message : String(err) }, opts))

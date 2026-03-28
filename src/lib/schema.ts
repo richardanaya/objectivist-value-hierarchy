@@ -360,6 +360,89 @@ export const commandSchemas: CommandSchema[] = [
     ],
     mutating: true,
   },
+  {
+    name: 'capture-aesthetic',
+    description: 'Capture an aesthetic reference (image, music, sculpture, etc.) that embodies your values. Store art/media you find meaningful with connections to why it resonates with your value hierarchy.',
+    requestSchema: {
+      description: 'Request body for capturing an aesthetic reference. The "why" field is crucial - explain how this connects to your values. Use aesthetic-types to see what types you have already captured.',
+      properties: {
+        file: { type: 'string', description: 'Path to the value hierarchy markdown file', default: 'value-hierarchy.md' },
+        title: { type: 'string', description: 'Descriptive name for this aesthetic reference' },
+        type: { type: 'string', description: 'Type: image, music, sculpture, architecture, film, literature, design, fashion, or other' },
+        source: { type: 'string', description: 'Artist/creator name (optional)' },
+        url: { type: 'string', description: 'Link to reference - highly recommended (optional)', format: 'uri' },
+        tags: { type: 'string', description: 'Pipe-separated tags: lighting, color, texture, mood, era, style (optional)' },
+        why: { type: 'string', description: 'CRUCIAL: How this connects to your value hierarchy. What values does it embody?' },
+        context: { type: 'string', description: 'Where/when you encountered it (optional)' },
+      },
+      required: ['title', 'type'],
+    },
+    responseSchema: {
+      description: 'Captured aesthetic confirmation',
+      properties: {
+        success: { type: 'boolean', description: 'Whether operation succeeded', readOnly: true },
+        message: { type: 'string', description: 'Status message', readOnly: true },
+        aesthetic: { type: 'object', description: 'The captured aesthetic entry', readOnly: true },
+      },
+    },
+    examples: [
+      'vh capture-aesthetic --json \'{"title": "Sunlight Through Morning Mist", "type": "image", "source": "Photographer Name", "url": "https://example.com/photo.jpg", "tags": "light|nature|minimalism", "why": "The clarity of light represents my value of intellectual honesty"}\'',
+      'vh capture-aesthetic --json \'{"title": "Glass House Architecture", "type": "architecture", "source": "Philip Johnson", "why": "Physical manifestation of transparency - nothing to hide"}\'',
+    ],
+    mutating: true,
+  },
+  {
+    name: 'list-aesthetics',
+    description: 'List captured aesthetic references',
+    requestSchema: {
+      description: 'Request body for listing aesthetics',
+      properties: {
+        file: { type: 'string', description: 'Path to the value hierarchy markdown file', default: 'value-hierarchy.md' },
+        type: { type: 'string', description: 'Filter by type: image, music, sculpture, etc.' },
+        tag: { type: 'string', description: 'Filter by specific tag' },
+        limit: { type: 'number', description: 'Limit number of results' },
+      },
+    },
+    responseSchema: {
+      description: 'List of aesthetic references',
+      properties: {
+        type: { type: 'string', description: 'Response type', readOnly: true },
+        file: { type: 'string', description: 'File path', readOnly: true },
+        timestamp: { type: 'string', format: 'date-time', description: 'Timestamp', readOnly: true },
+        filter: { type: 'object', description: 'Applied filters', readOnly: true },
+        count: { type: 'number', description: 'Total count of aesthetics', readOnly: true },
+        aesthetics: { type: 'array', description: 'Array of aesthetic entries', readOnly: true },
+      },
+    },
+    examples: [
+      'vh list-aesthetics --json \'{}\'',
+      'vh list-aesthetics --json \'{"type": "image"}\'',
+      'vh list-aesthetics --json \'{"tag": "minimalism", "limit": 5}\'',
+    ],
+  },
+  {
+    name: 'aesthetic-types',
+    description: 'Show distribution of aesthetic types (image, music, sculpture, etc.) with counts and percentages',
+    requestSchema: {
+      description: 'Request body for getting aesthetic type distribution',
+      properties: {
+        file: { type: 'string', description: 'Path to the value hierarchy markdown file', default: 'value-hierarchy.md' },
+      },
+    },
+    responseSchema: {
+      description: 'Distribution of aesthetic types',
+      properties: {
+        type: { type: 'string', description: 'Response type', readOnly: true },
+        file: { type: 'string', description: 'File path', readOnly: true },
+        timestamp: { type: 'string', format: 'date-time', description: 'Timestamp', readOnly: true },
+        total: { type: 'number', description: 'Total number of aesthetics', readOnly: true },
+        types: { type: 'array', description: 'Array of type distributions', readOnly: true },
+      },
+    },
+    examples: [
+      'vh aesthetic-types --json \'{}\'',
+    ],
+  },
 ]
 
 export function getSchema(commandName?: string): CommandSchema | CommandSchema[] | null {

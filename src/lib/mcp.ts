@@ -16,6 +16,11 @@ import {
   listEmotionCategories,
   deleteEmotions,
 } from '../commands/emotions.js'
+import {
+  captureAesthetic,
+  listAesthetics,
+  aestheticTypes,
+} from '../commands/aesthetics.js'
 import { loadTags } from './tags.js'
 import path from 'path'
 
@@ -64,6 +69,9 @@ const MCP_TOOL_NAMES: Record<string, string> = {
   'list-emotions': 'list_emotions',
   'emotion-categories': 'emotion_categories',
   'delete-emotions': 'delete_emotions',
+  'capture-aesthetic': 'capture_aesthetic',
+  'list-aesthetics': 'list_aesthetics',
+  'aesthetic-types': 'aesthetic_types',
 }
 
 export class MCPServer {
@@ -105,6 +113,15 @@ export class MCPServer {
             emotion: 'The emotion to log (e.g., "joyful", "anxious", "grateful"). Will be normalized to lowercase. IMPORTANT: Check emotion_categories first and try to reuse existing emotion names for consistency.',
             notes: 'Optional notes about the emotion or context. Include details about what triggered the emotion or the situation.',
           },
+          'capture-aesthetic': {
+            title: 'Descriptive name for this aesthetic reference. Should be specific enough to identify the work.',
+            type: 'Category: image, music, sculpture, architecture, film, literature, design, fashion, or other. Use aesthetic_types to see what you already have.',
+            source: 'Artist, creator, architect, musician, or source of the work.',
+            url: 'Link to the reference (image, video, article, etc.). Highly recommended for future reference.',
+            tags: 'Pipe-separated descriptive tags: lighting, color, texture, mood, minimalism, baroque, etc.',
+            why: 'CRUCIAL FIELD. Explain how this aesthetic connects to your value hierarchy. What values does it embody? Why does it resonate with you? This is the core objectivist insight.',
+            context: 'Optional: Where/when you encountered this, any story around discovering it.',
+          },
         }
 
         const customDesc = improvedFieldDescriptions[schema.name]?.[fieldName]
@@ -143,6 +160,9 @@ export class MCPServer {
       list_emotions: 'List recent emotions from your emotion log, optionally filtered by days or limited count',
       emotion_categories: 'Get a distinct list of all emotion types you have logged, with occurrence counts and last logged timestamps. Use this BEFORE logging new emotions to see what categories already exist and maintain consistency.',
       delete_emotions: 'Delete emotions from the log within a specified time range. Use with caution - deleted emotions cannot be recovered. Specify from and/or to dates (ISO 8601 format, inclusive).',
+      capture_aesthetic: 'Capture an aesthetic reference (image, music, sculpture, etc.) that embodies your values. Store art/media you find meaningful with connections to why it resonates. The "why" field is crucial - explain how this connects to your value hierarchy. This creates a concrete map of your abstract values for inspiration.',
+      list_aesthetics: 'Browse your captured aesthetic references. Filter by type (image, music, etc.) or tags to find inspiration that aligns with your values.',
+      aesthetic_types: 'Show distribution of aesthetic types (image, music, sculpture, etc.) with counts and percentages. See what kinds of art/media you value most.',
     }
 
     return {
@@ -239,6 +259,30 @@ export class MCPServer {
           from: params.from as string,
           to: params.to as string,
         })
+      }
+
+      case 'capture-aesthetic': {
+        return await captureAesthetic(filePath, {
+          title: params.title as string,
+          type: params.type as string,
+          source: params.source as string,
+          url: params.url as string,
+          tags: params.tags as string,
+          why: params.why as string,
+          context: params.context as string,
+        })
+      }
+
+      case 'list-aesthetics': {
+        return await listAesthetics(filePath, {
+          type: params.type as string,
+          tag: params.tag as string,
+          limit: params.limit as number,
+        })
+      }
+
+      case 'aesthetic-types': {
+        return await aestheticTypes(filePath)
       }
 
       default:
