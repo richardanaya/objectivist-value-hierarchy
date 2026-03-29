@@ -26,6 +26,26 @@ import {
   removeAesthetic,
 } from '../commands/aesthetics.js'
 import { loadTags } from './tags.js'
+import {
+  AddValueSchema,
+  EditValueSchema,
+  RemoveValueSchema,
+  SetHigherPrioritySchema,
+  ListValuesSchema,
+  SuggestionsSchema,
+  LogEmotionSchema,
+  ListEmotionsSchema,
+  ListEmotionCategoriesSchema,
+  DeleteEmotionsSchema,
+  EditEmotionSchema,
+  RemoveEmotionSchema,
+  CaptureAestheticSchema,
+  ListAestheticsSchema,
+  AestheticTypesSchema,
+  EditAestheticSchema,
+  RemoveAestheticSchema,
+  safeParse,
+} from './validation.js'
 import path from 'path'
 
 
@@ -188,6 +208,32 @@ export class MCPServer {
     }
   }
 
+  /**
+   * Get the Zod validation schema for a command
+   */
+  private getSchemaForCommand(commandName: string): import('zod').ZodType | null {
+    const schemaMap: Record<string, import('zod').ZodType> = {
+      'add': AddValueSchema,
+      'edit': EditValueSchema,
+      'remove': RemoveValueSchema,
+      'suggestions-to-improve': SuggestionsSchema,
+      'set-higher-priority-than': SetHigherPrioritySchema,
+      'list': ListValuesSchema,
+      'log-emotion': LogEmotionSchema,
+      'list-emotions': ListEmotionsSchema,
+      'emotion-categories': ListEmotionCategoriesSchema,
+      'delete-emotions': DeleteEmotionsSchema,
+      'edit-emotion': EditEmotionSchema,
+      'remove-emotion': RemoveEmotionSchema,
+      'capture-aesthetic': CaptureAestheticSchema,
+      'list-aesthetics': ListAestheticsSchema,
+      'aesthetic-types': AestheticTypesSchema,
+      'edit-aesthetic': EditAestheticSchema,
+      'remove-aesthetic': RemoveAestheticSchema,
+    }
+    return schemaMap[commandName] || null
+  }
+
   listTools(): Tool[] {
     return Array.from(this.tools.values())
   }
@@ -198,6 +244,17 @@ export class MCPServer {
 
     // Map MCP tool names back to internal command names
     const internalCommand = Object.entries(MCP_TOOL_NAMES).find(([_, mcpName]) => mcpName === commandName)?.[0] || commandName
+
+    // Get schema and validate params
+    const schema = this.getSchemaForCommand(internalCommand)
+    if (schema) {
+      const validation = safeParse(schema, params)
+      if (!validation.success) {
+        throw new Error(`Validation error: ${validation.error}`)
+      }
+      // Use validated data going forward
+      params = validation.data as Record<string, unknown>
+    }
 
     switch (internalCommand) {
       case 'add': {
